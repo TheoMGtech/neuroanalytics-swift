@@ -1,0 +1,55 @@
+# Env
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+htmlcov/
+.coverage
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Data
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/samples/
+!data/README.md
+
+# ML models
+backend/app/ml/**/*.pt
+backend/app/ml/**/*.pth
+backend/app/ml/**/*.h5
+backend/app/ml/**/*.keras
+backend/app/ml/**/*.pkl
+backend/app/ml/**/*.joblib
+
+# Docker
+*.pid
+
+# Database
+*.sqlite3
+*.db

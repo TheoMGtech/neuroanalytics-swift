@@ -1,0 +1,73 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider             = "prisma-client-py"
+  recursiveHelperTypes = true
+}
+
+model Analysis {
+  id            Int                 @id @default(autoincrement())
+  fileName      String              @map("file_name")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  totalReviews  Int                 @map("total_reviews")
+  generalNps    Float               @map("general_nps")
+  promoters     Int
+  neutral       Int
+  detractors    Int
+  saved         Boolean             @default(true)
+  
+  storeResults      StoreResult[]
+  commentResults    CommentResult[]
+  managementSummary ManagementSummary[]
+
+  @@map("analyses")
+}
+
+model StoreResult {
+  id           Int      @id @default(autoincrement())
+  analysisId   Int      @map("analysis_id")
+  storeName    String   @map("store_name")
+  flag         String
+  totalReviews Int      @map("total_reviews")
+  nps          Float
+  promoters    Int
+  neutral      Int
+  detractors   Int
+  isOutlier    Boolean  @map("is_outlier")
+
+  analysis     Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@map("store_results")
+}
+
+model CommentResult {
+  id          Int      @id @default(autoincrement())
+  analysisId  Int      @map("analysis_id")
+  storeName   String   @map("store_name")
+  commentText String   @map("comment_text")
+  sentiment   String
+  category    String
+  confidence  Float
+
+  analysis    Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@map("comment_results")
+}
+
+model ManagementSummary {
+  id           Int      @id @default(autoincrement())
+  analysisId   Int      @map("analysis_id")
+  flag         String
+  totalReviews Int      @map("total_reviews")
+  nps          Float
+  promoters    Int
+  neutral      Int
+  detractors   Int
+
+  analysis     Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@map("management_summary")
+}

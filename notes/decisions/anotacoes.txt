@@ -1,0 +1,7 @@
+Quantidade de promotores - detratores / soma do total das avaliações
+O resultado é em percentual 
+Flag: REGULAR indica que o gerente não é um germinare 
+Existe apenas uma avaliação por mês
+Proposta: NLP com análise de sentimento e por área (Produto, limpeza, atendimento, ruptura de produtos e abastecimento...mas posso pensar em uma categoria diferente).
+Existem 58 gerentes germinares (analisar isso se impacta - pq hoje, o NPS é 7% menor pra uma loja gerneciada por gemrianre comparado ocm um não germinare) -> 158 não são gerentes germinares -> ter uma comparação entre regulares e germinares 
+Indicar se uma determinada loja poderia impulsionar mais uma avaliação, pq uma loja pode ter uma pior avaliação por causa da quantidade de avaliações dela

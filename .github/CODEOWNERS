@@ -1,0 +1,20 @@
+# Responsáveis gerais
+* @seu-usuario-github
+
+# Backend
+/backend/ @seu-usuario-github
+
+# Frontend
+/frontend/ @seu-usuario-github
+
+# Machine Learning
+/backend/app/ml/ @seu-usuario-github
+
+# Dados e documentação
+/data/ @seu-usuario-github
+/notes/ @seu-usuario-github
+/docs/ @seu-usuario-github
+
+# DevOps
+/.github/ @seu-usuario-github
+/docker-compose.yml @seu-usuario-github
