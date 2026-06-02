@@ -1,84 +1,61 @@
-import { useState } from 'react'
-import Home from './pages/Home'
-import Dashboard from './pages/Dashboard'
-import History from './pages/History'
+import { Routes, Route, Navigate } from 'react-router-dom';
+
+import LandingPage from './pages/public/LandingPage';
+import Login from './pages/public/Login';
+import Register from './pages/public/Register';
+import MainLayout from './components/layout/MainLayout';
+import Dashboard from './pages/dashboard/Dashboard';
+import Upload from './pages/analysis/Upload';
+import Processing from './pages/analysis/Processing';
+import Preview from './pages/analysis/Preview';
+import Metrics from './pages/metrics/Metrics';
+import Sentiment from './pages/metrics/Sentiment';
+import Outliers from './pages/metrics/Outliers';
+import Categories from './pages/metrics/Categories';
+import HistoryList from './pages/history/HistoryList';
+import HistoryDetail from './pages/history/HistoryDetail';
+import Settings from './pages/settings/Settings';
+import InvalidBase from './pages/error/InvalidBase';
 
 function App() {
-  const [currentTab, setCurrentTab] = useState<'upload' | 'dashboard' | 'history'>('upload')
-  const [selectedAnalysisId, setSelectedAnalysisId] = useState<number | null>(null)
-
-  const navigateToDashboard = (analysisId: number | null = null) => {
-    setSelectedAnalysisId(analysisId)
-    setCurrentTab('dashboard')
-  }
-
   return (
-    <div className="min-height-screen bg-[#111111] text-white flex flex-col font-sans">
-      {/* Navigation Header */}
-      <header className="border-b border-[#222222] bg-[#161616] px-6 py-4 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          {/* Swift Red Branding Circle */}
-          <div className="w-4 h-4 rounded-full bg-[#E30613] animate-pulse" />
-          <h1 className="text-xl font-bold tracking-wider text-white">
-            NEURO<span className="text-[#E30613]">ANALYTICS</span>
-          </h1>
-          <span className="text-xs px-2 py-0.5 rounded bg-[#333333] text-gray-400 font-mono">
-            SWIFT PARTNER
-          </span>
-        </div>
-        <nav className="flex items-center gap-2">
-          <button
-            onClick={() => setCurrentTab('upload')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-              currentTab === 'upload'
-                ? 'bg-[#E30613] text-white shadow-lg shadow-[#e3061333]'
-                : 'text-gray-400 hover:text-white hover:bg-[#222222]'
-            }`}
-          >
-            Upload
-          </button>
-          <button
-            onClick={() => setCurrentTab('dashboard')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-              currentTab === 'dashboard'
-                ? 'bg-[#E30613] text-white shadow-lg shadow-[#e3061333]'
-                : 'text-gray-400 hover:text-white hover:bg-[#222222]'
-            }`}
-          >
-            Dashboard
-          </button>
-          <button
-            onClick={() => setCurrentTab('history')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-              currentTab === 'history'
-                ? 'bg-[#E30613] text-white shadow-lg shadow-[#e3061333]'
-                : 'text-gray-400 hover:text-white hover:bg-[#222222]'
-            }`}
-          >
-            Histórico
-          </button>
-        </nav>
-      </header>
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
-      {/* Main Page Area */}
-      <main className="flex-1 p-6 max-w-7xl mx-auto w-full">
-        {currentTab === 'upload' && (
-          <Home onUploadSuccess={() => navigateToDashboard()} />
-        )}
-        {currentTab === 'dashboard' && (
-          <Dashboard analysisId={selectedAnalysisId} />
-        )}
-        {currentTab === 'history' && (
-          <History onSelectAnalysis={(id) => navigateToDashboard(id)} />
-        )}
-      </main>
+      {/* Authenticated Layout */}
+      <Route path="/app" element={<MainLayout />}>
+        <Route index element={<Navigate to="/app/dashboard" replace />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        
+        {/* Analysis Flow */}
+        <Route path="upload" element={<Upload />} />
+        <Route path="processing" element={<Processing />} />
+        <Route path="preview" element={<Preview />} />
+        
+        {/* Visualizations */}
+        <Route path="metrics" element={<Metrics />} />
+        <Route path="sentiment" element={<Sentiment />} />
+        <Route path="outliers" element={<Outliers />} />
+        <Route path="categories" element={<Categories />} />
+        
+        {/* History */}
+        <Route path="history" element={<HistoryList />} />
+        <Route path="history/:id" element={<HistoryDetail />} />
+        
+        {/* Settings */}
+        <Route path="settings" element={<Settings />} />
+        
+        {/* Errors */}
+        <Route path="error/invalid-base" element={<InvalidBase />} />
+      </Route>
 
-      {/* Footer */}
-      <footer className="border-t border-[#222222] bg-[#161616] py-4 text-center text-xs text-gray-500">
-        © 2026 NeuroAnalytics & Swift. Todos os direitos reservados.
-      </footer>
-    </div>
-  )
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
 }
 
-export default App
+export default App;

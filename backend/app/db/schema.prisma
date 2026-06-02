@@ -7,6 +7,19 @@ generator client {
   provider             = "prisma-client-py"
 }
 
+model User {
+  id        Int        @id @default(autoincrement())
+  name      String
+  email     String     @unique
+  company   String?
+  password  String
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  analyses  Analysis[]
+
+  @@map("users")
+}
+
 model Analysis {
   id            Int                 @id @default(autoincrement())
   fileName      String              @map("file_name")
@@ -17,6 +30,9 @@ model Analysis {
   neutral       Int
   detractors    Int
   saved         Boolean             @default(true)
+  
+  userId        Int                 @map("user_id")
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   storeResults      StoreResult[]
   commentResults    CommentResult[]

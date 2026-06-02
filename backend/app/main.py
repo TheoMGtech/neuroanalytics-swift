@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import health, upload, history
+from app.api.routes import health, upload, history, auth
 from app.db.database import db
 
 app = FastAPI(
@@ -33,5 +33,9 @@ async def shutdown():
 
 # Include routers
 app.include_router(health.router, prefix=settings.API_PREFIX, tags=["Health"])
+app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Auth"])
 app.include_router(upload.router, prefix=settings.API_PREFIX, tags=["Upload"])
 app.include_router(history.router, prefix=settings.API_PREFIX, tags=["History"])
+
+from app.api.routes import dashboard
+app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", tags=["Dashboard"])
