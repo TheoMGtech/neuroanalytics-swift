@@ -2,6 +2,18 @@ import { useNavigate } from 'react-router-dom';
 
 const Topbar = () => {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || '{"name": "Usuário"}');
+  
+  const getInitials = (name: string) => {
+    if (!name) return 'US';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+  
+  const initials = getInitials(user.name);
   return (
     <header className="fixed top-0 right-0 w-[calc(100%-260px)] z-40 bg-surface border-b border-border-subtle flex justify-between items-center h-16 px-gutter">
       <div className="flex items-center gap-4">
@@ -33,7 +45,7 @@ const Topbar = () => {
         </button>
 
         <div className="w-8 h-8 rounded-full bg-secondary-container overflow-hidden border border-border-subtle flex items-center justify-center">
-          <span className="text-on-secondary-container font-bold text-xs">TS</span>
+          <span className="text-on-secondary-container font-bold text-xs" title={user.name}>{initials}</span>
         </div>
       </div>
     </header>

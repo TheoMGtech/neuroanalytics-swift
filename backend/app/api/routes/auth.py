@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from passlib.context import CryptContext
+import bcrypt
 from datetime import datetime, timedelta
 import jwt
 import os
@@ -11,7 +11,7 @@ router = APIRouter()
 SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key-neuroanalytics-swift-2026")
 ALGORITHM = "HS256"
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 class LoginRequest(BaseModel):
     email: str
@@ -35,7 +35,8 @@ async def register(user: RegisterRequest):
     if existing:
         raise HTTPException(status_code=400, detail="E-mail já cadastrado")
         
-    hashed_password = pwd_context.hash(user.password)
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), salt).decode('utf-8')
     
     new_user = await db.user.create(
         data={
@@ -47,13 +48,13 @@ async def register(user: RegisterRequest):
     )
     
     token = create_access_token(data={"sub": new_user.email})
-    return {"access_token": token, "token_type": "bearer", "user": {"id": new_user.id, "name": new_user.name, "email": new_user.email}}
+    return {"access_token": token, "token_type": "bearer", "user": {"id": new_user.id, "name": new_user.name, "email": new_user.email, "company": new_user.company}}
 
 @router.post("/login")
 async def login(req: LoginRequest):
     user = await db.user.find_unique(where={"email": req.email})
-    if not user or not pwd_context.verify(req.password, user.password):
+    if not user or not bcrypt.checkpw(req.password.encode('utf-8'), user.password.encode('utf-8')):
         raise HTTPException(status_code=401, detail="E-mail ou senha incorretos")
         
     token = create_access_token(data={"sub": user.email})
-    return {"access_token": token, "token_type": "bearer", "user": {"id": user.id, "name": user.name, "email": user.email}}
+    return {"access_token": token, "token_type": "bearer", "user": {"id": user.id, "name": user.name, "email": user.email, "company": user.company}}
