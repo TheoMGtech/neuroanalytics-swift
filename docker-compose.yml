@@ -23,6 +23,7 @@ services:
       - .env
     environment:
       - DATABASE_URL=postgresql://neuro:neuro@database:5432/neuroanalytics
+      - DIRECT_URL=postgresql://neuro:neuro@database:5432/neuroanalytics
     depends_on:
       - database
     volumes:
