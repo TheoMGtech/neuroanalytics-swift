@@ -2,10 +2,11 @@ import { useState } from 'react';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('profile');
+  const user = JSON.parse(localStorage.getItem('user') || '{"name": "Usuário Teste", "company": "Empresa", "email": "usuario@teste.com"}');
   
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
-      <div className="flex justify-between items-end mb-8">
+    <div className="space-y-4 max-w-4xl mx-auto pb-6">
+      <div className="flex justify-between items-end mb-4">
         <div>
           <h2 className="font-headline-lg text-headline-lg font-bold text-on-surface">Configurações</h2>
           <p className="font-body-md text-on-surface-variant mt-1">Gerencie seu perfil e preferências da conta.</p>
@@ -51,11 +52,11 @@ const Settings = () => {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 p-8">
+        <div className="flex-1 p-6">
           {activeTab === 'profile' && (
-            <div className="space-y-6">
-              <h3 className="font-headline-md text-xl font-bold text-on-surface mb-6">Informações Pessoais</h3>
-              <div className="flex items-center gap-6 mb-8">
+            <div className="space-y-4">
+              <h3 className="font-headline-md text-xl font-bold text-on-surface mb-4">Informações Pessoais</h3>
+              <div className="flex items-center gap-4 mb-6">
                 <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center text-primary border border-primary/30">
                   <span className="material-symbols-outlined text-[32px]">account_circle</span>
                 </div>
@@ -66,22 +67,22 @@ const Settings = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="font-label-md text-sm text-on-surface-variant">Nome Completo</label>
-                  <input type="text" defaultValue="Usuário Teste" className="w-full bg-surface border border-border-subtle rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-primary" />
+                  <input type="text" defaultValue={user.name} className="w-full bg-surface border border-border-subtle rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-primary" />
                 </div>
                 <div className="space-y-2">
                   <label className="font-label-md text-sm text-on-surface-variant">Empresa/Organização</label>
-                  <input type="text" defaultValue="Swift Brasil" className="w-full bg-surface border border-border-subtle rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-primary" />
+                  <input type="text" defaultValue={user.company} className="w-full bg-surface border border-border-subtle rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-primary" />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <label className="font-label-md text-sm text-on-surface-variant">Email</label>
-                  <input type="email" defaultValue="usuario@swift.com.br" disabled className="w-full bg-surface-container border border-border-subtle rounded-lg px-4 py-2.5 text-on-surface-variant opacity-70" />
+                  <input type="email" defaultValue={user.email} disabled className="w-full bg-surface-container border border-border-subtle rounded-lg px-4 py-2.5 text-on-surface-variant opacity-70" />
                 </div>
               </div>
 
-              <div className="pt-6 border-t border-border-subtle flex justify-end">
+              <div className="pt-4 border-t border-border-subtle flex justify-end">
                 <button className="px-6 py-2.5 bg-primary hover:bg-surface-tint text-on-primary rounded-lg font-bold transition-colors">
                   Salvar Alterações
                 </button>
@@ -90,8 +91,8 @@ const Settings = () => {
           )}
 
           {activeTab === 'security' && (
-            <div className="space-y-6">
-              <h3 className="font-headline-md text-xl font-bold text-on-surface mb-6">Segurança e Senha</h3>
+            <div className="space-y-4">
+              <h3 className="font-headline-md text-xl font-bold text-on-surface mb-4">Segurança e Senha</h3>
               <div className="space-y-4 max-w-md">
                 <div className="space-y-2">
                   <label className="font-label-md text-sm text-on-surface-variant">Senha Atual</label>
@@ -106,7 +107,7 @@ const Settings = () => {
                   <input type="password" placeholder="••••••••" className="w-full bg-surface border border-border-subtle rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-primary" />
                 </div>
               </div>
-              <div className="pt-6 border-t border-border-subtle flex justify-end">
+              <div className="pt-4 border-t border-border-subtle flex justify-end">
                 <button className="px-6 py-2.5 bg-primary hover:bg-surface-tint text-on-primary rounded-lg font-bold transition-colors">
                   Atualizar Senha
                 </button>
@@ -115,8 +116,8 @@ const Settings = () => {
           )}
 
           {activeTab === 'notifications' && (
-            <div className="space-y-6">
-              <h3 className="font-headline-md text-xl font-bold text-on-surface mb-6">Preferências de Notificação</h3>
+            <div className="space-y-4">
+              <h3 className="font-headline-md text-xl font-bold text-on-surface mb-4">Preferências de Notificação</h3>
               <div className="space-y-4">
                 <label className="flex items-center gap-3 p-4 border border-border-subtle rounded-lg cursor-pointer hover:bg-surface-faint">
                   <input type="checkbox" defaultChecked className="w-5 h-5 accent-primary bg-surface border-border-subtle rounded" />

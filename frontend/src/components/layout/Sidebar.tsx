@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 
 const Sidebar = () => {
   const location = useLocation();
+  const user = JSON.parse(localStorage.getItem('user') || '{"name": "Usuário", "company": "Empresa"}');
 
   const menuItems = [
     { name: 'Dashboard', icon: 'dashboard', path: '/app/dashboard' },
@@ -18,7 +19,7 @@ const Sidebar = () => {
       <div className="px-4 py-6 mb-4 flex flex-col gap-1">
         <img src="/swift-logo.png" alt="Swift Logo" className="h-12 w-auto object-contain object-left mb-3" />
         <h1 className="font-headline-md text-[22px] leading-tight font-bold text-on-primary tracking-wide">NeuroAnalytics</h1>
-        <p className="font-body-sm text-sm text-secondary-fixed-dim mt-1">Theo - Swift</p>
+        <p className="font-body-sm text-sm text-secondary-fixed-dim mt-1 truncate" title={`${user.name} - ${user.company}`}>{user.name} - {user.company}</p>
       </div>
 
       <nav className="flex-1 flex flex-col gap-1 overflow-y-auto">
