@@ -56,8 +56,8 @@ const HistoryDetail = () => {
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-white">{analysis.fileName}</h1>
-          <p className="text-gray-400">Analisado em {new Date(analysis.createdAt).toLocaleString()}</p>
+          <h1 className="text-2xl font-bold text-on-surface">{analysis.fileName}</h1>
+          <p className="text-on-surface-variant font-medium">Analisado em {new Date(analysis.createdAt).toLocaleString()}</p>
         </div>
         <div className="ml-auto">
           <button onClick={handleDelete} className="flex items-center gap-2 px-4 py-2 bg-error-container text-on-error-container hover:bg-error/20 rounded-lg transition-colors">
@@ -73,8 +73,8 @@ const HistoryDetail = () => {
             <CheckCircle className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm text-gray-400">Total Reviews</p>
-            <p className="text-2xl font-bold text-white">{analysis.totalReviews}</p>
+            <p className="text-sm text-on-surface-variant font-semibold">Total Reviews</p>
+            <p className="text-2xl font-bold text-on-surface">{analysis.totalReviews}</p>
           </div>
         </Card>
         <Card className="flex items-center gap-4">
@@ -82,7 +82,7 @@ const HistoryDetail = () => {
             <span className="material-symbols-outlined">speed</span>
           </div>
           <div>
-            <p className="text-sm text-gray-400">NPS Geral</p>
+            <p className="text-sm text-on-surface-variant font-semibold">NPS Geral</p>
             <p className="text-2xl font-bold text-primary">{analysis.generalNps.toFixed(2)}</p>
           </div>
         </Card>
@@ -91,7 +91,7 @@ const HistoryDetail = () => {
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm text-gray-400">Lojas Outliers</p>
+            <p className="text-sm text-on-surface-variant font-semibold">Lojas Outliers</p>
             <p className="text-2xl font-bold text-[#E30613]">{outliersCount}</p>
           </div>
         </Card>
@@ -100,7 +100,7 @@ const HistoryDetail = () => {
       <Card title="Amostra de Comentários">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-gray-400 uppercase bg-[#222222]">
+            <thead className="text-xs text-on-surface-variant uppercase bg-surface-container">
               <tr>
                 <th className="px-6 py-3 rounded-tl-lg">ID</th>
                 <th className="px-6 py-3">Loja</th>
@@ -111,11 +111,11 @@ const HistoryDetail = () => {
             </thead>
             <tbody>
               {analysis.commentResults?.map((row: any, index: number) => (
-                <tr key={row.id || index} className="border-b border-[#222222] hover:bg-[#222222]/50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-300">{index + 1}</td>
-                  <td className="px-6 py-4 text-white">{row.storeName}</td>
-                  <td className="px-6 py-4 text-gray-300 max-w-xs truncate">{row.commentText}</td>
-                  <td className="px-6 py-4 text-gray-300">{row.category}</td>
+                <tr key={row.id || index} className="border-b border-border-subtle hover:bg-surface-container-low transition-colors">
+                  <td className="px-6 py-4 font-medium text-on-surface-variant">{index + 1}</td>
+                  <td className="px-6 py-4 text-on-surface font-semibold">{row.storeName}</td>
+                  <td className="px-6 py-4 text-on-surface-variant max-w-xs truncate">{row.commentText}</td>
+                  <td className="px-6 py-4 text-on-surface-variant">{row.category}</td>
                   <td className="px-6 py-4">
                     <Badge variant={
                       row.sentiment?.toLowerCase() === 'positivo' ? 'positive' : 
