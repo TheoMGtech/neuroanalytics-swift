@@ -37,5 +37,6 @@ app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Aut
 app.include_router(upload.router, prefix=settings.API_PREFIX, tags=["Upload"])
 app.include_router(history.router, prefix=settings.API_PREFIX, tags=["History"])
 
-from app.api.routes import dashboard
+from app.api.routes import dashboard, users
 app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", tags=["Dashboard"])
+app.include_router(users.router, prefix=f"{settings.API_PREFIX}/users", tags=["Users"])

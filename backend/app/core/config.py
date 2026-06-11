@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_MB: int = 30
     ALLOWED_EXTENSIONS: str = ".csv,.xlsx,.xls"
     
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001,http://localhost:5173"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

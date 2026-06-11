@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import jwt
 import os
 from app.db.database import db
+from app.api.deps import get_current_user_email
 
 router = APIRouter()
 
@@ -31,6 +32,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 @router.post("/register")
 async def register(user: RegisterRequest):
+    if len(user.password) < 6:
+        raise HTTPException(status_code=400, detail="A senha deve ter no mínimo 6 caracteres")
+        
     existing = await db.user.find_unique(where={"email": user.email})
     if existing:
         raise HTTPException(status_code=400, detail="E-mail já cadastrado")
@@ -58,3 +62,10 @@ async def login(req: LoginRequest):
         
     token = create_access_token(data={"sub": user.email})
     return {"access_token": token, "token_type": "bearer", "user": {"id": user.id, "name": user.name, "email": user.email, "company": user.company}}
+
+@router.get("/me")
+async def get_me(email: str = Depends(get_current_user_email)):
+    user = await db.user.find_unique(where={"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    return {"id": user.id, "name": user.name, "email": user.email, "company": user.company}

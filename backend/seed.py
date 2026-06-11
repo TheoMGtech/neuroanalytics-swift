@@ -68,80 +68,79 @@ async def seed():
         }
     )
     
-    # 2. Create an Analysis (mocked)
-    logger.info("Seeding Analysis...")
-    analysis = await db.analysis.create(
-        data={
-            "fileName": "avaliacoes_maio_2026.csv",
-            "totalReviews": 5280,
-            "generalNps": 72.0,
-            "promoters": 3500,
-            "neutral": 1100,
-            "detractors": 680,
-            "userId": user.id,
-            "saved": True
-        }
-    )
-
-    # 3. Create Store Results
-    logger.info("Seeding Store Results...")
-    for store in STORES:
-        is_outlier = store == "Swift Pinheiros"
-        nps = random.uniform(60.0, 90.0) if not is_outlier else 45.0
+    logger.info("Seeding Analyses over 3 months...")
+    for month_offset in [2, 1, 0]:
+        created_at = datetime.now() - timedelta(days=30 * month_offset)
         
-        await db.storeresult.create(
+        analysis = await db.analysis.create(
             data={
-                "analysisId": analysis.id,
-                "storeName": store,
-                "flag": "outlier" if is_outlier else "normal",
-                "totalReviews": random.randint(500, 1000),
-                "nps": nps,
-                "promoters": random.randint(300, 600),
-                "neutral": random.randint(100, 200),
-                "detractors": random.randint(20, 150),
-                "isOutlier": is_outlier
+                "fileName": f"avaliacoes_mes_offset_{month_offset}.csv",
+                "createdAt": created_at,
+                "totalReviews": random.randint(4000, 6000),
+                "generalNps": random.uniform(60.0, 80.0),
+                "promoters": random.randint(2000, 4000),
+                "neutral": random.randint(500, 1500),
+                "detractors": random.randint(300, 800),
+                "userId": user.id,
+                "saved": True
             }
         )
-        
-    # 4. Create Comment Results
-    logger.info("Seeding Comments...")
-    # Seed around 100 comments for the UI tables
-    comments_to_create = []
-    for i in range(100):
-        sentiment = random.choice(SENTIMENTS)
-        if sentiment == "Positivo":
-            cat = random.choice(["Atendimento", "Qualidade do produto", "Experiência geral", "Limpeza"])
-        elif sentiment == "Negativo":
-            cat = random.choice(["Tempo de espera", "Preço", "Organização", "Atendimento"])
-        else:
-            cat = random.choice(CATEGORIES)
+
+        logger.info(f"Seeding Store Results for analysis {analysis.id}...")
+        for store in STORES:
+            is_outlier = store == "Swift Pinheiros"
+            nps = random.uniform(60.0, 90.0) if not is_outlier else random.uniform(30.0, 45.0)
             
-        comments_to_create.append({
-            "analysisId": analysis.id,
-            "storeName": random.choice(STORES),
-            "commentText": random.choice(COMMENTS_POOL[sentiment]),
-            "sentiment": sentiment,
-            "category": cat,
-            "confidence": round(random.uniform(0.75, 0.99), 2)
-        })
-        
-    for c in comments_to_create:
-        await db.commentresult.create(data=c)
-
-    # 5. Create Management Summaries
-    logger.info("Seeding Management Summaries...")
-    for flag in ["critical", "warning", "info"]:
-        await db.managementsummary.create(
-            data={
+            await db.storeresult.create(
+                data={
+                    "analysisId": analysis.id,
+                    "storeName": store,
+                    "flag": "outlier" if is_outlier else "normal",
+                    "totalReviews": random.randint(500, 1000),
+                    "nps": nps,
+                    "promoters": random.randint(300, 600),
+                    "neutral": random.randint(100, 200),
+                    "detractors": random.randint(20, 150),
+                    "isOutlier": is_outlier
+                }
+            )
+            
+        logger.info(f"Seeding Comments for analysis {analysis.id}...")
+        comments_to_create = []
+        for i in range(50):
+            sentiment = random.choice(SENTIMENTS)
+            if sentiment == "Positivo":
+                cat = random.choice(["Atendimento", "Qualidade do produto", "Experiência geral", "Limpeza"])
+            elif sentiment == "Negativo":
+                cat = random.choice(["Tempo de espera", "Preço", "Organização", "Atendimento"])
+            else:
+                cat = random.choice(CATEGORIES)
+                
+            comments_to_create.append({
                 "analysisId": analysis.id,
-                "flag": flag,
-                "totalReviews": random.randint(100, 500),
-                "nps": random.uniform(30.0, 80.0),
-                "promoters": random.randint(50, 200),
-                "neutral": random.randint(20, 100),
-                "detractors": random.randint(10, 50)
-            }
-        )
+                "storeName": random.choice(STORES),
+                "commentText": random.choice(COMMENTS_POOL[sentiment]),
+                "sentiment": sentiment,
+                "category": cat,
+                "confidence": round(random.uniform(0.75, 0.99), 2)
+            })
+            
+        for c in comments_to_create:
+            await db.commentresult.create(data=c)
+
+        logger.info(f"Seeding Management Summaries for analysis {analysis.id}...")
+        for flag in ["critical", "warning", "info"]:
+            await db.managementsummary.create(
+                data={
+                    "analysisId": analysis.id,
+                    "flag": flag,
+                    "totalReviews": random.randint(100, 500),
+                    "nps": random.uniform(30.0, 80.0),
+                    "promoters": random.randint(50, 200),
+                    "neutral": random.randint(20, 100),
+                    "detractors": random.randint(10, 50)
+                }
+            )
 
     logger.info("Seeding completed!")
     await db.disconnect()

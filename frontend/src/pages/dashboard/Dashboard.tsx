@@ -149,7 +149,7 @@ const Dashboard = () => {
             </button>
           </div>
           <div className="h-64 w-full">
-            {metrics.evolutionData.length > 0 ? (
+            {metrics.evolutionData.length > 1 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={metrics.evolutionData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                   <Line type="monotone" dataKey="nps" stroke="#aa3100" strokeWidth={3} dot={{ r: 4, fill: '#aa3100' }} activeDot={{ r: 6 }} />
@@ -161,6 +161,11 @@ const Dashboard = () => {
                   />
                 </LineChart>
               </ResponsiveContainer>
+            ) : metrics.evolutionData.length === 1 ? (
+              <div className="h-full flex flex-col items-center justify-center text-on-surface-variant bg-surface-container/30 rounded-lg border border-dashed border-border-subtle">
+                <span className="font-display-md text-3xl font-bold text-primary mb-2">{metrics.evolutionData[0].nps} NPS</span>
+                <span className="text-sm text-center px-4">Esta é sua primeira análise.<br/>Envie mais dados no futuro para visualizar a evolução do gráfico.</span>
+              </div>
             ) : (
               <div className="h-full flex items-center justify-center text-on-surface-variant">Nenhum dado disponível. Envie uma análise.</div>
             )}
