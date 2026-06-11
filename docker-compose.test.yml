@@ -1,0 +1,48 @@
+services:
+  database_test:
+    image: postgres:16
+    container_name: neuroanalytics_db_test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: neuro
+      POSTGRES_PASSWORD: neuro
+      POSTGRES_DB: neuroanalytics_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - neuroanalytics_postgres_test_data:/var/lib/postgresql/data
+
+  backend_test:
+    build:
+      context: ./backend
+    container_name: neuroanalytics_backend_test
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql://neuro:neuro@database_test:5432/neuroanalytics_test
+      - DIRECT_URL=postgresql://neuro:neuro@database_test:5432/neuroanalytics_test
+      - SECRET_KEY=super-secret-key-neuroanalytics-swift-2026
+    depends_on:
+      - database_test
+    volumes:
+      - ./backend:/app
+
+  frontend_test:
+    image: node:22-alpine
+    container_name: neuroanalytics_frontend_test
+    restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "3001:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8001
+    command: sh -c "npm install --legacy-peer-deps && npm run dev"
+    depends_on:
+      - backend_test
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  neuroanalytics_postgres_test_data:

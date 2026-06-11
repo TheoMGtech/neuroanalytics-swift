@@ -105,7 +105,7 @@ const HistoryDetail = () => {
                 <th className="px-6 py-3 rounded-tl-lg">ID</th>
                 <th className="px-6 py-3">Loja</th>
                 <th className="px-6 py-3">Comentário</th>
-                <th className="px-6 py-3">Nota</th>
+                <th className="px-6 py-3">Categoria</th>
                 <th className="px-6 py-3 rounded-tr-lg">Sentimento</th>
               </tr>
             </thead>
@@ -114,8 +114,8 @@ const HistoryDetail = () => {
                 <tr key={row.id || index} className="border-b border-[#222222] hover:bg-[#222222]/50 transition-colors">
                   <td className="px-6 py-4 font-medium text-gray-300">{index + 1}</td>
                   <td className="px-6 py-4 text-white">{row.storeName}</td>
-                  <td className="px-6 py-4 text-gray-300 max-w-xs truncate">{row.content}</td>
-                  <td className="px-6 py-4 font-bold">{row.score}</td>
+                  <td className="px-6 py-4 text-gray-300 max-w-xs truncate">{row.commentText}</td>
+                  <td className="px-6 py-4 text-gray-300">{row.category}</td>
                   <td className="px-6 py-4">
                     <Badge variant={
                       row.sentiment?.toLowerCase() === 'positivo' ? 'positive' : 

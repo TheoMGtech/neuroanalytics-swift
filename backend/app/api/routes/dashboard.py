@@ -57,16 +57,17 @@ async def get_dashboard_metrics(email: str = Depends(get_current_user_email)):
     else:
         sentiment_data = []
 
-    # Evolution (mock historical trend using the current NPS as the latest point)
-    # Since we might not have 6 months of data, we will just construct a line that ends in the current NPS.
-    current_nps = latest_analysis.generalNps
+    # Evolution (real historical trend)
+    recent_analyses = await db.analysis.find_many(
+        where={"userId": user.id},
+        order={"createdAt": "desc"},
+        take=10
+    )
+    recent_analyses.reverse()
+    
     evolution_data = [
-        {"name": "Jan", "nps": max(0, current_nps - 15)},
-        {"name": "Fev", "nps": max(0, current_nps - 10)},
-        {"name": "Mar", "nps": max(0, current_nps - 5)},
-        {"name": "Abr", "nps": max(0, current_nps - 8)},
-        {"name": "Mai", "nps": max(0, current_nps - 2)},
-        {"name": "Jun", "nps": current_nps},
+        {"name": a.createdAt.strftime("%d/%m"), "nps": a.generalNps}
+        for a in recent_analyses
     ]
 
     # Simple insights logic based on actual data

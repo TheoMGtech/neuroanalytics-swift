@@ -7,6 +7,7 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,7 +18,11 @@ const Login = () => {
       localStorage.setItem('user', JSON.stringify(response.data.user));
       navigate('/app/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Erro ao fazer login');
+      if (err.message === 'Network Error') {
+        setError('Erro de conexão: O servidor backend está offline ou inacessível.');
+      } else {
+        setError(err.response?.data?.detail || 'Erro ao fazer login');
+      }
     }
   };
 
@@ -64,14 +69,25 @@ const Login = () => {
                 <label className="block text-sm font-semibold text-on-surface-variant">Senha</label>
                 <a href="#" className="text-xs font-semibold text-primary hover:underline">Esqueci minha senha</a>
               </div>
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-surface border border-border-subtle rounded-lg px-4 py-3 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
-                required
-              />
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-surface border border-border-subtle rounded-lg px-4 py-3 pr-10 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                  required
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-primary transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">
+                    {showPassword ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
+              </div>
             </div>
             
             <div className="flex items-center gap-2 py-2">

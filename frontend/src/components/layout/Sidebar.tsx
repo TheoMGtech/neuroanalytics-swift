@@ -53,13 +53,19 @@ const Sidebar = () => {
             <span className="material-symbols-outlined">settings</span>
             Configurações
           </Link>
-          <Link
-            to="/login"
-            className="flex items-center gap-3 px-4 py-3 text-secondary-fixed-dim hover:text-on-primary hover:bg-on-secondary-fixed-variant transition-colors rounded-xl active:scale-95 transition-transform"
+          <a
+            href="/login"
+            onClick={(e) => {
+              e.preventDefault();
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              window.location.href = '/login';
+            }}
+            className="flex items-center gap-3 px-4 py-3 text-secondary-fixed-dim hover:text-on-primary hover:bg-on-secondary-fixed-variant transition-colors rounded-xl active:scale-95 transition-transform cursor-pointer"
           >
             <span className="material-symbols-outlined">logout</span>
             Sair
-          </Link>
+          </a>
         </div>
       </nav>
     </aside>
