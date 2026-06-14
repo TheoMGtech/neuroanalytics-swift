@@ -26,7 +26,7 @@ async def get_dashboard_metrics(email: str = Depends(get_current_user_email)):
         }
 
     # storeData
-    store_results = await db.store_result.find_many(
+    store_results = await db.storeresult.find_many(
         where={"analysisId": latest_analysis.id},
         order={"nps": "desc"}
     )
@@ -114,7 +114,7 @@ async def get_categories_metrics(email: str = Depends(get_current_user_email)):
     )
     if not latest_analysis: return []
 
-    comments = await db.comment_result.find_many(where={"analysisId": latest_analysis.id})
+    comments = await db.commentresult.find_many(where={"analysisId": latest_analysis.id})
     
     cat_counts = {}
     for c in comments:
@@ -134,7 +134,7 @@ async def get_outliers_metrics(email: str = Depends(get_current_user_email)):
     )
     if not latest_analysis: return []
 
-    outliers = await db.store_result.find_many(
+    outliers = await db.storeresult.find_many(
         where={
             "analysisId": latest_analysis.id,
             "isOutlier": True
@@ -171,7 +171,7 @@ async def get_sentiments_metrics(email: str = Depends(get_current_user_email)):
             {"name": "Negativo", "value": round((negative/total)*100)},
         ]
         
-    comments = await db.comment_result.find_many(
+    comments = await db.commentresult.find_many(
         where={"analysisId": latest_analysis.id},
         take=20
     )
