@@ -3,7 +3,11 @@ import joblib
 import pandas as pd
 import numpy as np
 import re
+import logging
 from sklearn.base import BaseEstimator, TransformerMixin
+from scipy.sparse import csr_matrix, hstack
+
+logger = logging.getLogger(__name__)
 
 # Definição das classes necessárias para o pipeline (joblib) carregar corretamente
 class FeatureExtrator(BaseEstimator, TransformerMixin):
@@ -49,17 +53,20 @@ class TFIDFComFeatures(BaseEstimator):
     def __init__(self, tfidf_params=None, C=0.3):
         self.tfidf_params = tfidf_params or {}
         self.C = C
-        # Note: the actual instances will be loaded by joblib
-        pass
 
     def fit(self, X, y):
-        pass
+        return self
+
+    def _transform_combined(self, X):
+        X_tfidf = self.tfidf_.transform(X)
+        X_feat = csr_matrix(self.feat_.transform(X))
+        return hstack([X_tfidf, X_feat])
 
     def predict(self, X):
-        pass
+        return self.clf_.predict(self._transform_combined(X))
 
     def predict_proba(self, X):
-        pass
+        return self.clf_.predict_proba(self._transform_combined(X))
 
 
 # Global module variable to inject TFIDFComFeatures into __main__ scope
@@ -71,6 +78,11 @@ sys.modules['__main__'].FeatureExtrator = FeatureExtrator
 # Lazy load dos modelos
 _modelo_sentimento = None
 _modelo_categorizacao = None
+_has_model_errors = False
+
+def has_model_errors() -> bool:
+    global _has_model_errors
+    return _has_model_errors
 
 def _load_models():
     global _modelo_sentimento, _modelo_categorizacao
@@ -85,7 +97,9 @@ def _load_models():
             _modelo_sentimento = joblib.load(sentimento_path)
             _modelo_categorizacao = joblib.load(categorizacao_path)
         except Exception as e:
-            print(f"Warning: ML models not found or failed to load. Will fallback to defaults. Error: {e}")
+            global _has_model_errors
+            _has_model_errors = True
+            logger.warning(f"Warning: ML models not found or failed to load. Will fallback to defaults. Error: {e}")
 
 def get_sentiment_predictions(comments: list) -> list:
     """
@@ -131,7 +145,7 @@ def get_sentiment_predictions(comments: list) -> list:
                     "confidence": round(float(confidences[i]), 2)
                 })
     except Exception as e:
-        print(f"Error during sentiment prediction: {e}")
+        logger.warning(f"Error during sentiment prediction: {e}")
         results = [{"sentiment": "Neutro", "confidence": 1.0} for _ in comments]
         
     return results
@@ -174,7 +188,7 @@ def get_category_predictions(comments: list) -> list:
                     "confidence": round(float(confidences[i]), 2)
                 })
     except Exception as e:
-        print(f"Error during category prediction: {e}")
+        logger.warning(f"Error during category prediction: {e}")
         results = [{"category": "Outros", "confidence": 1.0} for _ in comments]
         
     return results

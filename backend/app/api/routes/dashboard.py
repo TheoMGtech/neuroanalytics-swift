@@ -1,10 +1,83 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 from app.api.deps import get_current_user_email
 from app.db.database import db
 
 router = APIRouter()
+
+
+def _row_value(row, key: str):
+    if isinstance(row, dict):
+        return row.get(key)
+    return getattr(row, key)
+
+
+def _row_count(row) -> int:
+    count = _row_value(row, "_count")
+    if isinstance(count, dict):
+        return int(count.get("_all") or count.get("all") or 0)
+    return int(getattr(count, "_all", 0) or getattr(count, "all", 0) or 0)
+
+
+def _empty_metrics():
+    return {
+        "evolutionData": [],
+        "storeData": [],
+        "sentimentData": [],
+        "managementData": [],
+        "categoryData": [],
+        "insights": [],
+        "reclassificationReasons": [],
+        "totalReviews": 0,
+        "reclassifiedCount": 0,
+        "generalNps": 0,
+        "originalNps": 0,
+    }
+
+
+async def _get_user(email: str):
+    user = await db.user.find_unique(where={"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    return user
+
+
+async def _get_analysis(user_id: int, analysis_id: Optional[int] = None):
+    if analysis_id:
+        return await db.analysis.find_first(where={"id": analysis_id, "userId": user_id})
+    return await db.analysis.find_first(
+        where={"userId": user_id},
+        order={"createdAt": "desc"},
+    )
+
+
+def _store_where(analysis_id: int, store: Optional[str], flag: Optional[str]) -> dict:
+    where = {"analysisId": analysis_id}
+    if store and store != "Todos":
+        where["storeName"] = store
+    if flag and flag != "Todos":
+        where["flag"] = flag
+    return where
+
+
+async def _comment_where(analysis_id: int, store: Optional[str], flag: Optional[str]) -> dict:
+    where = {"analysisId": analysis_id}
+    if store and store != "Todos":
+        where["storeName"] = store
+    elif flag and flag != "Todos":
+        stores = await db.storeresult.find_many(
+            where={"analysisId": analysis_id, "flag": flag}
+        )
+        where["storeName"] = {"in": [s.storeName for s in stores]}
+    return where
+
+
+async def _group_comment_counts(by: list[str], where: dict):
+    return await db.commentresult.group_by(by=by, where=where, count=True)
+
 
 @router.get("/metrics")
 async def get_dashboard_metrics(
@@ -13,82 +86,63 @@ async def get_dashboard_metrics(
     end_date: Optional[str] = Query(None),
     store: Optional[str] = Query(None),
     flag: Optional[str] = Query(None),
-    email: str = Depends(get_current_user_email)
+    email: str = Depends(get_current_user_email),
 ):
-    user = await db.user.find_unique(where={"email": email})
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-
-    if analysis_id:
-        latest_analysis = await db.analysis.find_first(
-            where={"id": analysis_id, "userId": user.id}
-        )
-    else:
-        latest_analysis = await db.analysis.find_first(
-            where={"userId": user.id},
-            order={"createdAt": "desc"}
-        )
-
+    user = await _get_user(email)
+    latest_analysis = await _get_analysis(user.id, analysis_id)
     if not latest_analysis:
-        return {
-            "evolutionData": [],
-            "storeData": [],
-            "sentimentData": [],
-            "insights": []
-        }
+        return _empty_metrics()
 
-    # storeData
-    where_store = {"analysisId": latest_analysis.id}
-    if store and store != "Todos":
-        where_store["storeName"] = store
-    if flag and flag != "Todos":
-        where_store["flag"] = flag
+    where_store = _store_where(latest_analysis.id, store, flag)
+    store_results = await db.storeresult.find_many(where=where_store, order={"nps": "desc"})
 
-    store_results = await db.storeresult.find_many(
-        where=where_store,
-        order={"nps": "desc"}
-    )
-    
-    # map to colors based on NPS (just for UI consistency)
     def get_color(nps):
-        if nps >= 75: return "#346E4A" # Green
-        if nps >= 50: return "#525f78" # Neutral/Blueish
-        return "#E04403" # Red
-        
+        if nps >= 75:
+            return "#346E4A"
+        if nps >= 50:
+            return "#525f78"
+        return "#E04403"
+
     store_data = [
         {
-            "name": s.storeName, 
-            "nps": s.nps, 
-            "originalNps": s.originalNps, 
+            "name": s.storeName,
+            "nps": s.nps,
+            "originalNps": s.originalNps,
             "color": get_color(s.nps),
             "promoters": s.promoters,
             "neutral": s.neutral,
-            "detractors": s.detractors
+            "detractors": s.detractors,
         }
         for s in store_results
     ]
 
-    # sentimentData dynamically calculated from filtered stores
-    positive = sum(s.promoters for s in store_results)
-    neutral = sum(s.neutral for s in store_results)
-    negative = sum(s.detractors for s in store_results)
-    total = positive + neutral + negative
-    
-    if total > 0:
-        sentiment_data = [
-            {"name": "Positivo", "value": round((positive/total)*100), "color": "#346E4A"},
-            {"name": "Neutro", "value": round((neutral/total)*100), "color": "#525f78"},
-            {"name": "Negativo", "value": round((negative/total)*100), "color": "#E04403"},
-        ]
-    else:
-        sentiment_data = []
+    where_comments = await _comment_where(latest_analysis.id, store, flag)
+    sentiment_rows = await _group_comment_counts(["sentiment"], where_comments)
+    sentiment_counts = {
+        _row_value(row, "sentiment") or "Neutro": _row_count(row)
+        for row in sentiment_rows
+    }
+    sentiment_total = sum(sentiment_counts.values())
+    colors = {"Positivo": "#346E4A", "Neutro": "#525f78", "Negativo": "#E04403"}
+    sentiment_data = [
+        {
+            "name": name,
+            "value": round((sentiment_counts.get(name, 0) / sentiment_total) * 100, 4)
+            if sentiment_total
+            else 0,
+            "count": sentiment_counts.get(name, 0),
+            "color": colors[name],
+        }
+        for name in ["Positivo", "Neutro", "Negativo"]
+    ]
 
-    # Evolution (real historical trend)
     where_evol = {"userId": user.id}
     if start_date and end_date:
         try:
             start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-            end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59
+            )
             where_evol["createdAt"] = {"gte": start_dt, "lte": end_dt}
         except ValueError:
             pass
@@ -96,60 +150,74 @@ async def get_dashboard_metrics(
     recent_analyses = await db.analysis.find_many(
         where=where_evol,
         order={"createdAt": "desc"},
-        take=10
+        take=10,
     )
     recent_analyses.reverse()
-    
     evolution_data = [
-        {"name": a.createdAt.strftime("%d/%m"), "nps": a.generalNps, "originalNps": a.originalNps}
+        {
+            "name": a.createdAt.strftime("%d/%m"),
+            "nps": a.generalNps,
+            "originalNps": a.originalNps,
+        }
         for a in recent_analyses
     ]
 
-    # Simple insights logic based on actual data
     insights = []
     outliers = [s for s in store_results if s.isOutlier]
     if outliers:
         worst_outlier = min(outliers, key=lambda x: x.nps)
-        insights.append({
-            "type": "alert",
-            "icon": "storefront",
-            "title": f"Alerta: Loja {worst_outlier.storeName}",
-            "description": f"Detectado como outlier de performance. NPS crítico de {worst_outlier.nps}. Necessita atenção imediata."
-        })
-    
-    best_store = store_results[0] if store_results else None
-    if best_store and best_store.nps >= 75:
-        insights.append({
-            "type": "success",
-            "icon": "thumb_up",
-            "title": f"Destaque: Loja {best_store.storeName}",
-            "description": f"Excelente desempenho com NPS de {best_store.nps}."
-        })
+        insights.append(
+            {
+                "type": "alert",
+                "icon": "storefront",
+                "title": f"Alerta: Loja {worst_outlier.storeName}",
+                "description": (
+                    "A loja foi marcada como outlier de NPS. Verifique volume de "
+                    "comentários e divergência entre nota e texto antes de comparar."
+                ),
+            }
+        )
 
-    insights.append({
-        "type": "info",
-        "icon": "schedule",
-        "title": "Processamento da Base",
-        "description": f"Última análise processou {latest_analysis.totalReviews} avaliações com sucesso."
-    })
-    
-    if latest_analysis.reclassifiedCount > 0:
-        insights.append({
+    if store_results and store_results[0].nps >= 75:
+        best_store = store_results[0]
+        insights.append(
+            {
+                "type": "success",
+                "icon": "thumb_up",
+                "title": f"Destaque: Loja {best_store.storeName}",
+                "description": f"Excelente desempenho com NPS de {best_store.nps:.1f}.",
+            }
+        )
+
+    insights.append(
+        {
             "type": "info",
-            "icon": "auto_awesome",
-            "title": "Ação da Inteligência Artificial",
-            "description": f"A IA reclassificou {latest_analysis.reclassifiedCount} comentários baseada na análise de sentimento."
-        })
+            "icon": "schedule",
+            "title": "Processamento da Base",
+            "description": (
+                f"Última análise processou {latest_analysis.totalReviews} comentários "
+                "válidos após a limpeza dos notebooks."
+            ),
+        }
+    )
 
-    # ManagementData (Regular vs Tocadora)
+    if latest_analysis.reclassifiedCount > 0:
+        insights.append(
+            {
+                "type": "info",
+                "icon": "auto_awesome",
+                "title": "Ação da Inteligência Artificial",
+                "description": (
+                    f"A IA reclassificou {latest_analysis.reclassifiedCount} comentários "
+                    "com base no sentimento textual."
+                ),
+            }
+        )
+
     where_management = {"analysisId": latest_analysis.id}
     if flag and flag != "Todos":
         where_management["flag"] = flag
-        
-    management_summaries = await db.managementsummary.find_many(
-        where=where_management
-    )
-    
+    management_summaries = await db.managementsummary.find_many(where=where_management)
     management_data = [
         {
             "flag": m.flag,
@@ -161,36 +229,34 @@ async def get_dashboard_metrics(
             "originalNps": m.originalNps,
             "originalPromoters": m.originalPromoters,
             "originalNeutral": m.originalNeutral,
-            "originalDetractors": m.originalDetractors
+            "originalDetractors": m.originalDetractors,
         }
         for m in management_summaries
     ]
 
-    # Buscar motivos de reclassificacao reais da analise
-    reclass_counts = {}
-    if latest_analysis.reclassifiedCount > 0:
-        comments_reclass = await db.commentresult.find_many(
-            where={"analysisId": latest_analysis.id, "reclassificationRule": {"not": None}}
-        )
-        for c in comments_reclass:
-            rule = c.reclassificationRule
-            if rule not in reclass_counts:
-                reclass_counts[rule] = 0
-            reclass_counts[rule] += 1
-            
-    reclassification_reasons = [{"rule": k, "count": v} for k, v in reclass_counts.items()]
+    reclass_rows = await _group_comment_counts(
+        ["reclassificationRule"],
+        {"analysisId": latest_analysis.id, "reclassificationRule": {"not": None}},
+    )
+    reclassification_reasons = [
+        {"rule": _row_value(row, "reclassificationRule"), "count": _row_count(row)}
+        for row in reclass_rows
+    ]
     reclassification_reasons.sort(key=lambda x: x["count"], reverse=True)
 
-    comments_all = await db.commentresult.find_many(where={"analysisId": latest_analysis.id})
+    category_rows = await _group_comment_counts(["category", "aiClassification"], where_comments)
     cat_data = {}
-    for c in comments_all:
-        cat = c.category or "Outros"
-        cls = c.aiClassification
+    for row in category_rows:
+        cat = _row_value(row, "category") or "Outros"
+        cls = _row_value(row, "aiClassification")
         if cat not in cat_data:
             cat_data[cat] = {"category": cat, "promoters": 0, "neutral": 0, "detractors": 0}
-        if cls == "promoter": cat_data[cat]["promoters"] += 1
-        elif cls == "neutral": cat_data[cat]["neutral"] += 1
-        elif cls == "detractor": cat_data[cat]["detractors"] += 1
+        if cls == "promoter":
+            cat_data[cat]["promoters"] += _row_count(row)
+        elif cls == "neutral":
+            cat_data[cat]["neutral"] += _row_count(row)
+        elif cls == "detractor":
+            cat_data[cat]["detractors"] += _row_count(row)
     category_data = list(cat_data.values())
 
     return {
@@ -207,106 +273,70 @@ async def get_dashboard_metrics(
         "originalNps": latest_analysis.originalNps,
     }
 
+
 @router.get("/categories")
 async def get_categories_metrics(email: str = Depends(get_current_user_email)):
-    user = await db.user.find_unique(where={"email": email})
-    latest_analysis = await db.analysis.find_first(
-        where={"userId": user.id}, order={"createdAt": "desc"}
-    )
-    if not latest_analysis: return []
+    user = await _get_user(email)
+    latest_analysis = await _get_analysis(user.id)
+    if not latest_analysis:
+        return []
 
-    comments = await db.commentresult.find_many(where={"analysisId": latest_analysis.id})
-    
-    cat_counts = {}
-    for c in comments:
-        cat = c.category
-        if cat not in cat_counts: cat_counts[cat] = 0
-        cat_counts[cat] += 1
-        
-    result = [{"name": k, "value": v} for k, v in cat_counts.items()]
+    rows = await _group_comment_counts(["category"], {"analysisId": latest_analysis.id})
+    result = [
+        {"name": _row_value(row, "category") or "Outros", "value": _row_count(row)}
+        for row in rows
+    ]
     result.sort(key=lambda x: x["value"], reverse=True)
     return result
 
+
 @router.get("/outliers")
 async def get_outliers_metrics(email: str = Depends(get_current_user_email)):
-    user = await db.user.find_unique(where={"email": email})
-    latest_analysis = await db.analysis.find_first(
-        where={"userId": user.id}, order={"createdAt": "desc"}
-    )
-    if not latest_analysis: return []
+    user = await _get_user(email)
+    latest_analysis = await _get_analysis(user.id)
+    if not latest_analysis:
+        return []
 
     outliers = await db.storeresult.find_many(
-        where={
-            "analysisId": latest_analysis.id,
-            "isOutlier": True
-        }
+        where={"analysisId": latest_analysis.id, "isOutlier": True}
     )
-    
     return [
         {
             "storeName": o.storeName,
             "nps": o.nps,
             "totalReviews": o.totalReviews,
-            "detractors": o.detractors
-        } for o in outliers
+            "detractors": o.detractors,
+        }
+        for o in outliers
     ]
+
 
 @router.get("/sentiments")
 async def get_sentiments_metrics(
     analysis_id: Optional[int] = Query(None),
     store: Optional[str] = Query(None),
     flag: Optional[str] = Query(None),
-    email: str = Depends(get_current_user_email)
+    email: str = Depends(get_current_user_email),
 ):
-    user = await db.user.find_unique(where={"email": email})
-    
-    if analysis_id:
-        latest_analysis = await db.analysis.find_first(
-            where={"id": analysis_id, "userId": user.id}
-        )
-    else:
-        latest_analysis = await db.analysis.find_first(
-            where={"userId": user.id}, order={"createdAt": "desc"}
-        )
+    user = await _get_user(email)
+    latest_analysis = await _get_analysis(user.id, analysis_id)
+    if not latest_analysis:
+        return {"distribution": [], "comments": []}
 
-    if not latest_analysis: return {"distribution": [], "comments": []}
+    where_comments = await _comment_where(latest_analysis.id, store, flag)
+    rows = await _group_comment_counts(["sentiment"], where_comments)
+    counts = {_row_value(row, "sentiment") or "Neutro": _row_count(row) for row in rows}
+    total = sum(counts.values())
+    distribution = [
+        {
+            "name": name,
+            "value": round((counts.get(name, 0) / total) * 100, 4) if total else 0,
+            "count": counts.get(name, 0),
+        }
+        for name in ["Positivo", "Neutro", "Negativo"]
+    ]
 
-    where_store = {"analysisId": latest_analysis.id}
-    if store and store != "Todos":
-        where_store["storeName"] = store
-    if flag and flag != "Todos":
-        where_store["flag"] = flag
-
-    store_results = await db.storeresult.find_many(
-        where=where_store
-    )
-
-    positive = sum(s.promoters for s in store_results)
-    neutral = sum(s.neutral for s in store_results)
-    negative = sum(s.detractors for s in store_results)
-    total = positive + neutral + negative
-    
-    distribution = []
-    if total > 0:
-        distribution = [
-            {"name": "Positivo", "value": round((positive/total)*100)},
-            {"name": "Neutro", "value": round((neutral/total)*100)},
-            {"name": "Negativo", "value": round((negative/total)*100)},
-        ]
-        
-    valid_store_names = [s.storeName for s in store_results]
-    where_comments = {"analysisId": latest_analysis.id}
-    if store and store != "Todos":
-        where_comments["storeName"] = store
-    elif flag and flag != "Todos":
-        # se filtrou por flag mas não loja especifica, garantir que pegue lojas dessa flag
-        where_comments["storeName"] = {"in": valid_store_names}
-
-    comments = await db.commentresult.find_many(
-        where=where_comments,
-        take=20
-    )
-    
+    comments = await db.commentresult.find_many(where=where_comments, take=20)
     return {
         "distribution": distribution,
         "comments": [
@@ -317,10 +347,12 @@ async def get_sentiments_metrics(
                 "category": c.category,
                 "originalClassification": c.originalClassification,
                 "aiClassification": c.aiClassification,
-                "reclassificationRule": c.reclassificationRule
-            } for c in comments
-        ]
+                "reclassificationRule": c.reclassificationRule,
+            }
+            for c in comments
+        ],
     }
+
 
 @router.get("/comments")
 async def get_comments_paginated(
@@ -330,49 +362,27 @@ async def get_comments_paginated(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     search: Optional[str] = Query(None),
-    email: str = Depends(get_current_user_email)
+    email: str = Depends(get_current_user_email),
 ):
-    user = await db.user.find_unique(where={"email": email})
-    
-    if analysis_id:
-        latest_analysis = await db.analysis.find_first(
-            where={"id": analysis_id, "userId": user.id}
-        )
-    else:
-        latest_analysis = await db.analysis.find_first(
-            where={"userId": user.id}, order={"createdAt": "desc"}
-        )
+    user = await _get_user(email)
+    latest_analysis = await _get_analysis(user.id, analysis_id)
+    if not latest_analysis:
+        return {"data": [], "meta": {"totalItems": 0, "totalPages": 0, "page": page, "limit": limit}}
 
-    if not latest_analysis: return {"data": [], "total": 0, "page": page, "limit": limit}
-
-    where_store = {"analysisId": latest_analysis.id}
-    if store and store != "Todos":
-        where_store["storeName"] = store
-    if flag and flag != "Todos":
-        where_store["flag"] = flag
-
-    store_results = await db.storeresult.find_many(where=where_store)
-    valid_store_names = [s.storeName for s in store_results]
-
-    where_comments = {"analysisId": latest_analysis.id}
-    if store and store != "Todos":
-        where_comments["storeName"] = store
-    elif flag and flag != "Todos":
-        where_comments["storeName"] = {"in": valid_store_names}
-        
+    where_comments = await _comment_where(latest_analysis.id, store, flag)
     if search:
         where_comments["OR"] = [
             {"commentText": {"contains": search, "mode": "insensitive"}},
-            {"storeName": {"contains": search, "mode": "insensitive"}}
+            {"storeName": {"contains": search, "mode": "insensitive"}},
         ]
 
     total = await db.commentresult.count(where=where_comments)
     comments = await db.commentresult.find_many(
         where=where_comments,
         skip=(page - 1) * limit,
-        take=limit
+        take=limit,
     )
-    
+
     return {
         "data": [
             {
@@ -384,13 +394,14 @@ async def get_comments_paginated(
                 "confidence": c.confidence,
                 "originalClassification": c.originalClassification,
                 "aiClassification": c.aiClassification,
-                "reclassificationRule": c.reclassificationRule
-            } for c in comments
+                "reclassificationRule": c.reclassificationRule,
+            }
+            for c in comments
         ],
         "meta": {
             "totalItems": total,
             "totalPages": (total + limit - 1) // limit,
             "page": page,
-            "limit": limit
-        }
+            "limit": limit,
+        },
     }
