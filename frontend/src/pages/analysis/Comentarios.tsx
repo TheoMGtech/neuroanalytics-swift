@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFilters } from '../../context/FilterContext';
 import api from '../../services/api';
+import { buildFilterParams } from '../../utils/filterParams';
 
 const Comentarios = () => {
   const { toggleDrawer, activeFilterCount, filters } = useFilters();
@@ -25,13 +26,10 @@ const Comentarios = () => {
       try {
         const response = await api.get('/dashboard/comments', {
           params: {
+            ...buildFilterParams(filters),
             page,
             limit,
-            search: searchTerm,
-            start_date: filters.startDate,
-            end_date: filters.endDate,
-            store: filters.store,
-            flag: filters.flag
+            search: searchTerm || undefined,
           }
         });
         
@@ -56,6 +54,22 @@ const Comentarios = () => {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchInput(e.target.value);
     setSearchTerm(e.target.value);
+  };
+
+  const classLabel = (value?: string) => {
+    const normalized = (value || '').toLowerCase();
+    if (normalized === 'promoter') return 'Promotor';
+    if (normalized === 'neutral') return 'Neutro';
+    if (normalized === 'detractor') return 'Detrator';
+    return value || '-';
+  };
+
+  const classStyle = (value?: string) => {
+    const normalized = (value || '').toLowerCase();
+    if (normalized === 'detractor') return 'bg-status-error/10 text-status-error';
+    if (normalized === 'promoter') return 'bg-status-success/10 text-status-success';
+    if (normalized === 'neutral') return 'bg-secondary/10 text-secondary';
+    return 'bg-surface-variant text-on-surface-variant';
   };
 
   return (
@@ -113,7 +127,7 @@ const Comentarios = () => {
                 <tr>
                   <th className="px-4 py-3 min-w-[100px]">Data</th>
                   <th className="px-4 py-3 min-w-[120px]">Loja</th>
-                  <th className="px-4 py-3 text-center">Nota</th>
+                  <th className="px-4 py-3 text-center">Classe por Nota</th>
                   <th className="px-4 py-3 text-center">Classe Original</th>
                   <th className="px-4 py-3 text-center">Classe IA</th>
                   <th className="px-4 py-3 min-w-[300px]">Comentário</th>
@@ -122,33 +136,35 @@ const Comentarios = () => {
               </thead>
               <tbody className="divide-y divide-border-subtle">
                 {data.map((item, index) => {
-                  const isReclassified = item.original_classification !== item.ai_classification;
+                  const originalClassification = item.originalClassification || item.original_classification;
+                  const aiClassification = item.aiClassification || item.ai_classification;
+                  const comment = item.text || item.comment || '';
+                  const store = item.storeName || item.store || '-';
+                  const isReclassified = Boolean(item.reclassificationRule) || originalClassification !== aiClassification;
                   
                   return (
                     <tr key={index} className="hover:bg-surface-faint transition-colors">
                       <td className="px-4 py-4 text-on-surface-variant whitespace-nowrap">
                         {item.date ? new Date(item.date).toLocaleDateString('pt-BR') : '-'}
                       </td>
-                      <td className="px-4 py-4 font-bold whitespace-nowrap">{item.store || '-'}</td>
-                      <td className="px-4 py-4 text-center font-bold">{item.note}</td>
+                      <td className="px-4 py-4 font-bold whitespace-nowrap">{store}</td>
+                      <td className="px-4 py-4 text-center font-bold">{classLabel(originalClassification)}</td>
                       <td className="px-4 py-4 text-center whitespace-nowrap">
-                        <span className="px-2 py-1 bg-surface-variant text-on-surface-variant rounded-full text-[10px] font-bold uppercase">{item.original_classification || '-'}</span>
-                      </td>
-                      <td className="px-4 py-4 text-center whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-                          item.ai_classification === 'DETRATOR' ? 'bg-status-error/10 text-status-error' :
-                          item.ai_classification === 'PROMOTOR' ? 'bg-status-success/10 text-status-success' :
-                          'bg-secondary/10 text-secondary'
-                        }`}>
-                          {item.ai_classification || '-'}
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${classStyle(originalClassification)}`}>
+                          {classLabel(originalClassification)}
                         </span>
                       </td>
-                      <td className="px-4 py-4 italic text-on-surface-variant">"{item.comment}"</td>
+                      <td className="px-4 py-4 text-center whitespace-nowrap">
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${classStyle(aiClassification)}`}>
+                          {classLabel(aiClassification)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 italic text-on-surface-variant">"{comment}"</td>
                       <td className="px-4 py-4 text-center whitespace-nowrap">
                         <span className={`px-2 py-1 rounded border text-[10px] font-bold uppercase ${
                           isReclassified ? 'border-primary text-primary bg-primary/5' : 'border-border-subtle text-on-surface-variant bg-surface'
                         }`}>
-                          {isReclassified ? 'Reclassificada' : 'Mantida'}
+                          {item.status || (isReclassified ? 'Reclassificada' : 'Mantida')}
                         </span>
                       </td>
                     </tr>
