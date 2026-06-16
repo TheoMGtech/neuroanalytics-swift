@@ -3,22 +3,40 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../../services/api';
 
 const Sentiment = () => {
+  const [history, setHistory] = useState<any[]>([]);
+  const [availableStores, setAvailableStores] = useState<string[]>([]);
+  const [filters, setFilters] = useState({
+    analysis_id: '',
+    store: 'Todos',
+    flag: 'Todos'
+  });
   const [data, setData] = useState<any>({ distribution: [], comments: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await api.get('/dashboard/sentiments');
-        setData(response.data);
-      } catch (error) {
-        console.error('Error fetching sentiments:', error);
-      } finally {
-        setLoading(false);
+    api.get('/history').then(res => setHistory(res.data)).catch(console.error);
+    api.get('/dashboard/sentiments').then(() => {
+      // populate stores from history or initial load if needed
+      // since sentiments might not return store list easily, we can fetch metrics or just rely on what's available
+    }).catch(console.error);
+    // Para simplificar, vou carregar as lojas do /dashboard/metrics
+    api.get('/dashboard/metrics').then(res => {
+      if (res.data.storeData) {
+        setAvailableStores(res.data.storeData.map((s: any) => s.name).sort());
       }
-    };
-    fetchData();
+    }).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    const activeFilters = Object.fromEntries(
+      Object.entries(filters).filter(([_, v]) => v !== '' && v !== 'Todos')
+    );
+    api.get('/dashboard/sentiments', { params: activeFilters })
+      .then(res => setData(res.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [filters]);
 
   const getBadgeColor = (sentiment: string) => {
     const s = sentiment.toLowerCase();
@@ -44,6 +62,37 @@ const Sentiment = () => {
         <div>
           <h2 className="font-headline-lg text-headline-lg font-bold text-on-surface">Análise de Sentimentos</h2>
           <p className="font-body-md text-body-md text-on-surface-variant mt-1">Distribuição do sentimento e amostra de comentários por polaridade.</p>
+        </div>
+        <div className="flex flex-wrap gap-2 mt-4 md:mt-0 justify-end max-w-2xl">
+          <select 
+            value={filters.analysis_id} 
+            onChange={e => setFilters({...filters, analysis_id: e.target.value})}
+            className="border border-border-subtle rounded-lg bg-surface px-3 py-1.5 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-navy-muted max-w-[200px] truncate"
+          >
+            <option value="">Última Análise (Padrão)</option>
+            {history.map(h => (
+              <option key={h.id} value={h.id}>{h.fileName}</option>
+            ))}
+          </select>
+          <select 
+            value={filters.store} 
+            onChange={e => setFilters({...filters, store: e.target.value})}
+            className="border border-border-subtle rounded-lg bg-surface px-3 py-1.5 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-navy-muted"
+          >
+            <option value="Todos">Todas as Lojas</option>
+            {availableStores.map(storeName => (
+              <option key={storeName} value={storeName}>{storeName}</option>
+            ))}
+          </select>
+          <select 
+            value={filters.flag} 
+            onChange={e => setFilters({...filters, flag: e.target.value})}
+            className="border border-border-subtle rounded-lg bg-surface px-3 py-1.5 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-navy-muted"
+          >
+            <option value="Todos">Todas as Flags</option>
+            <option value="TOCADORA">Tocadora</option>
+            <option value="REGULAR">Regular</option>
+          </select>
         </div>
       </div>
 

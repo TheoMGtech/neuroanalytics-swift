@@ -68,39 +68,39 @@ const HistoryDetail = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="flex items-center gap-4">
+        <Card className="flex items-center gap-4 !bg-navy-muted !border-navy-muted text-white">
           <div className="w-12 h-12 bg-green-500/10 text-green-500 rounded-xl flex items-center justify-center">
             <CheckCircle className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm text-on-surface-variant font-semibold">Total Reviews</p>
-            <p className="text-2xl font-bold text-on-surface">{analysis.totalReviews}</p>
+            <p className="text-sm text-gray-300 font-semibold">Total Reviews</p>
+            <p className="text-2xl font-bold text-white">{analysis.totalReviews}</p>
           </div>
         </Card>
-        <Card className="flex items-center gap-4">
+        <Card className="flex items-center gap-4 !bg-navy-muted !border-navy-muted text-white">
           <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
             <span className="material-symbols-outlined">speed</span>
           </div>
           <div>
-            <p className="text-sm text-on-surface-variant font-semibold">NPS Geral</p>
+            <p className="text-sm text-gray-300 font-semibold">NPS Geral</p>
             <p className="text-2xl font-bold text-primary">{analysis.generalNps.toFixed(2)}</p>
           </div>
         </Card>
-        <Card className="flex items-center gap-4 border-[#E30613]/20">
+        <Card className="flex items-center gap-4 border-[#E30613]/20 !bg-navy-muted text-white">
           <div className="w-12 h-12 bg-[#E30613]/10 text-[#E30613] rounded-xl flex items-center justify-center">
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm text-on-surface-variant font-semibold">Lojas Outliers</p>
+            <p className="text-sm text-gray-300 font-semibold">Lojas Outliers</p>
             <p className="text-2xl font-bold text-[#E30613]">{outliersCount}</p>
           </div>
         </Card>
       </div>
 
-      <Card title="Amostra de Comentários">
+      <Card title="Amostra de Comentários" className="!bg-navy-muted !border-navy-muted text-white">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-on-surface-variant uppercase bg-surface-container">
+            <thead className="text-xs text-gray-300 uppercase bg-black/20">
               <tr>
                 <th className="px-6 py-3 rounded-tl-lg">ID</th>
                 <th className="px-6 py-3">Loja</th>
@@ -111,11 +111,11 @@ const HistoryDetail = () => {
             </thead>
             <tbody>
               {analysis.commentResults?.map((row: any, index: number) => (
-                <tr key={row.id || index} className="border-b border-border-subtle hover:bg-surface-container-low transition-colors">
-                  <td className="px-6 py-4 font-medium text-on-surface-variant">{index + 1}</td>
-                  <td className="px-6 py-4 text-on-surface font-semibold">{row.storeName}</td>
-                  <td className="px-6 py-4 text-on-surface-variant max-w-xs truncate">{row.commentText}</td>
-                  <td className="px-6 py-4 text-on-surface-variant">{row.category}</td>
+                <tr key={row.id || index} className="border-b border-white/10 hover:bg-white/5 transition-colors">
+                  <td className="px-6 py-4 font-medium text-gray-300">{index + 1}</td>
+                  <td className="px-6 py-4 text-white font-semibold">{row.storeName}</td>
+                  <td className="px-6 py-4 text-gray-300 max-w-xs truncate">{row.commentText}</td>
+                  <td className="px-6 py-4 text-gray-300">{row.category}</td>
                   <td className="px-6 py-4">
                     <Badge variant={
                       row.sentiment?.toLowerCase() === 'positivo' ? 'positive' : 

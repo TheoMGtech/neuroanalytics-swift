@@ -26,3 +26,13 @@
     @apply bg-surface-faint text-on-surface font-body-md min-h-screen overflow-x-hidden m-0;
   }
 }
+
+@layer utilities {
+  .hide-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+}

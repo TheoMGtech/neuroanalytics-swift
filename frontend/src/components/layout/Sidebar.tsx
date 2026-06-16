@@ -5,12 +5,14 @@ const Sidebar = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{"name": "Usuário", "company": "Empresa"}');
 
   const menuItems = [
-    { name: 'Dashboard', icon: 'dashboard', path: '/app/dashboard' },
+    { name: 'Visão Geral', icon: 'dashboard', path: '/app/dashboard' },
     { name: 'Nova Análise', icon: 'add_chart', path: '/app/upload' },
-    { name: 'Métricas', icon: 'analytics', path: '/app/metrics' },
-    { name: 'Sentimentos', icon: 'psychology', path: '/app/sentiment' },
-    { name: 'Outliers', icon: 'error_outline', path: '/app/outliers' },
-    { name: 'Categorias', icon: 'category', path: '/app/categories' },
+    { name: 'Comparação NPS', icon: 'compare_arrows', path: '/app/comparacao' },
+    { name: 'Gestão: Regular x Tocadora', icon: 'store', path: '/app/gestao' },
+    { name: 'Promotores x Detratores', icon: 'groups', path: '/app/grupos' },
+    { name: 'Visão por Lojas', icon: 'storefront', path: '/app/lojas' },
+    { name: 'Explicabilidade IA', icon: 'memory', path: '/app/explicabilidade' },
+    { name: 'Comentários', icon: 'forum', path: '/app/comentarios' },
     { name: 'Histórico', icon: 'history', path: '/app/history' },
   ];
 
@@ -22,7 +24,7 @@ const Sidebar = () => {
         <p className="font-body-sm text-sm text-secondary-fixed-dim mt-1 truncate" title={`${user.name} - ${user.company}`}>{user.name} - {user.company}</p>
       </div>
 
-      <nav className="flex-1 flex flex-col gap-1 overflow-y-auto">
+      <nav className="flex-1 flex flex-col gap-1 overflow-y-auto hide-scrollbar">
         {menuItems.map((item) => {
           const isActive = location.pathname.startsWith(item.path);
           return (

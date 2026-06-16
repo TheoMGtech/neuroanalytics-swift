@@ -7,7 +7,7 @@ from app.api.deps import get_current_user_email
 from app.db.database import db
 from app.services.file_validation import validate_headers
 from app.services.data_cleaning import clean_data
-from app.services.nps_service import calculate_nps
+from app.services.nps_service import calculate_nps_with_ai
 from app.services.outlier_service import detect_outliers
 from app.ml.inference import get_sentiment_predictions, get_category_predictions
 
@@ -34,11 +34,33 @@ async def upload_file(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao ler arquivo: {str(e)}")
 
+    # Normalizar nomes de colunas para mapeamento
+    df.columns = [str(c).lower().strip() for c in df.columns]
+    
+    # Mapear as colunas reais do arquivo para os nomes esperados pelo backend
+    column_mapping = {
+        'centronv2': 'loja',
+        'flag': 'bandeira',
+        'classificacao': 'nota'
+    }
+    df = df.rename(columns=column_mapping)
+
     if not validate_headers(df):
         raise HTTPException(status_code=400, detail="Colunas obrigatórias não encontradas no arquivo (loja, bandeira, nota)")
 
     df = clean_data(df)
-    nps_data = calculate_nps(df)
+    
+    # Run ML Inference First
+    comments = df['comentario'].tolist()
+    sentiments = get_sentiment_predictions(comments)
+    categories = get_category_predictions(comments)
+    
+    df['sentiment'] = [s['sentiment'] for s in sentiments]
+    df['category'] = [c['category'] for c in categories]
+    df['confidence'] = [c['confidence'] for c in categories]
+    
+    # Calculate NPS (Original and AI-Adjusted)
+    nps_data = calculate_nps_with_ai(df)
     
     if not nps_data:
         raise HTTPException(status_code=400, detail="Arquivo vazio após a limpeza de dados.")
@@ -48,16 +70,9 @@ async def upload_file(
     management_summary = nps_data["management_summary"]
 
     store_results = detect_outliers(store_results)
+    
+    avg_confidence = float(df['confidence'].mean()) if not df.empty else 0.0
 
-    # ML Inference Mocking
-    comments = df['comentario'].tolist()
-    sentiments = get_sentiment_predictions(comments)
-    categories = get_category_predictions(comments)
-    
-    df['sentiment'] = [s['sentiment'] for s in sentiments]
-    df['category'] = [c['category'] for c in categories]
-    df['confidence'] = [c['confidence'] for c in categories] # Simple mock confidence
-    
     # Optional Database Save
     analysis_id = None
     if save_analysis:
@@ -69,6 +84,14 @@ async def upload_file(
                 "promoters": general["promoters"],
                 "neutral": general["neutral"],
                 "detractors": general["detractors"],
+                
+                "originalNps": general["original_nps"],
+                "originalPromoters": general["original_promoters"],
+                "originalNeutral": general["original_neutral"],
+                "originalDetractors": general["original_detractors"],
+                "reclassifiedCount": general["reclassified_count"],
+                "confidenceAvg": avg_confidence,
+                
                 "saved": True,
                 "userId": user.id,
             }
@@ -76,7 +99,7 @@ async def upload_file(
         analysis_id = analysis.id
         
         # Save store results
-        await db.store_result.create_many(
+        await db.storeresult.create_many(
             data=[
                 {
                     "analysisId": analysis_id,
@@ -87,13 +110,17 @@ async def upload_file(
                     "promoters": s["promoters"],
                     "neutral": s["neutral"],
                     "detractors": s["detractors"],
+                    "originalNps": s["original_nps"],
+                    "originalPromoters": s["original_promoters"],
+                    "originalNeutral": s["original_neutral"],
+                    "originalDetractors": s["original_detractors"],
                     "isOutlier": s["is_outlier"],
                 } for s in store_results
             ]
         )
         
         # Save management summary
-        await db.management_summary.create_many(
+        await db.managementsummary.create_many(
             data=[
                 {
                     "analysisId": analysis_id,
@@ -103,13 +130,17 @@ async def upload_file(
                     "promoters": m["promoters"],
                     "neutral": m["neutral"],
                     "detractors": m["detractors"],
+                    "originalNps": m["original_nps"],
+                    "originalPromoters": m["original_promoters"],
+                    "originalNeutral": m["original_neutral"],
+                    "originalDetractors": m["original_detractors"],
                 } for m in management_summary
             ]
         )
         
         # Save comments (taking top 100 max to avoid huge payload/DB locks in PoC)
         comments_to_save = df.head(100).to_dict('records')
-        await db.comment_result.create_many(
+        await db.commentresult.create_many(
             data=[
                 {
                     "analysisId": analysis_id,
@@ -118,6 +149,9 @@ async def upload_file(
                     "sentiment": str(c['sentiment']),
                     "category": str(c['category']),
                     "confidence": float(c['confidence']),
+                    "originalClassification": str(c['nps_class_original']),
+                    "aiClassification": str(c['nps_class_ai']),
+                    "reclassificationRule": str(c['reclassification_rule']) if c.get('reclassification_rule') else None,
                 } for c in comments_to_save
             ]
         )
