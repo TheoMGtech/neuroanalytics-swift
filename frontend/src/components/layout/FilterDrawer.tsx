@@ -1,7 +1,48 @@
+import { useEffect, useState } from 'react';
 import { useFilters, FilterState } from '../../context/FilterContext';
+import api from '../../services/api';
+
+type FilterOptions = {
+  stores: { name: string; flag?: string }[];
+  files: { id: number; name: string }[];
+  categories: string[];
+  sentiments: string[];
+};
 
 const FilterDrawer = () => {
   const { isDrawerOpen, closeDrawer, filters, updateFilter, clearFilters, activeFilterCount } = useFilters();
+  const [options, setOptions] = useState<FilterOptions>({
+    stores: [],
+    files: [],
+    categories: [],
+    sentiments: [],
+  });
+  const [loadingOptions, setLoadingOptions] = useState(false);
+
+  useEffect(() => {
+    if (!isDrawerOpen) return;
+
+    const fetchOptions = async () => {
+      setLoadingOptions(true);
+      try {
+        const response = await api.get('/dashboard/filter-options', {
+          params: { analysis_id: filters.file || undefined },
+        });
+        setOptions({
+          stores: response.data.stores || [],
+          files: response.data.files || [],
+          categories: response.data.categories || [],
+          sentiments: response.data.sentiments || [],
+        });
+      } catch (error) {
+        console.error('Erro ao carregar filtros:', error);
+      } finally {
+        setLoadingOptions(false);
+      }
+    };
+
+    fetchOptions();
+  }, [isDrawerOpen, filters.file]);
 
   if (!isDrawerOpen) return null;
 
@@ -89,7 +130,7 @@ const FilterDrawer = () => {
           <div>
             <h3 className="font-body-md font-bold text-on-surface mb-3">Gestão</h3>
             <div className="flex flex-col gap-2">
-              {['REGULAR', 'TOCADORA'].map(flag => (
+              {['REGULAR', 'TOCADORA', 'NAO_IDENTIFICADO'].map(flag => (
                 <label key={flag} className="flex items-center gap-2 cursor-pointer">
                   <input 
                     type="checkbox" 
@@ -129,7 +170,7 @@ const FilterDrawer = () => {
           <div>
             <h3 className="font-body-md font-bold text-on-surface mb-3">Sentimento</h3>
             <div className="flex flex-col gap-2">
-              {['Positivo', 'Neutro', 'Negativo'].map(sentiment => (
+              {(options.sentiments.length ? options.sentiments : ['Positivo', 'Neutro', 'Negativo']).map(sentiment => (
                 <label key={sentiment} className="flex items-center gap-2 cursor-pointer">
                   <input 
                     type="checkbox" 
@@ -138,6 +179,26 @@ const FilterDrawer = () => {
                     className="rounded border-border-subtle text-primary focus:ring-primary"
                   />
                   <span className="text-sm text-on-surface">{sentiment}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <hr className="border-border-subtle" />
+
+          {/* Categoria */}
+          <div>
+            <h3 className="font-body-md font-bold text-on-surface mb-3">Categoria</h3>
+            <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+              {(options.categories.length ? options.categories : ['Outros', 'Atendimento', 'Preco', 'Produto/Qualidade', 'Entrega', 'Abastecimento', 'Estrutura/Loja']).map(category => (
+                <label key={category} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filters.category.includes(category)}
+                    onChange={() => handleCheckboxChange('category', category)}
+                    className="rounded border-border-subtle text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm text-on-surface">{category}</span>
                 </label>
               ))}
             </div>
@@ -154,9 +215,33 @@ const FilterDrawer = () => {
               className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm bg-surface"
             >
               <option value="">Todas as lojas</option>
-              <option value="Loja A">Loja A</option>
-              <option value="Loja B">Loja B</option>
-              <option value="Loja C">Loja C</option>
+              {options.stores.map(store => (
+                <option key={store.name} value={store.name}>
+                  {store.name}{store.flag ? ` (${store.flag})` : ''}
+                </option>
+              ))}
+            </select>
+            {loadingOptions && (
+              <p className="text-xs text-on-surface-variant mt-2">Carregando lojas da analise...</p>
+            )}
+          </div>
+
+          <hr className="border-border-subtle" />
+
+          {/* Arquivo / Analise */}
+          <div>
+            <h3 className="font-body-md font-bold text-on-surface mb-3">Arquivo / Analise</h3>
+            <select
+              value={filters.file}
+              onChange={(e) => updateFilter('file', e.target.value)}
+              className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm bg-surface"
+            >
+              <option value="">Analise mais recente</option>
+              {options.files.map(file => (
+                <option key={file.id} value={file.id}>
+                  #{file.id} - {file.name}
+                </option>
+              ))}
             </select>
           </div>
 

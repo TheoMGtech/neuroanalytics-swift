@@ -6,6 +6,7 @@ const Upload = () => {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saveToHistory, setSaveToHistory] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setError(null);
@@ -34,7 +35,7 @@ const Upload = () => {
 
   const handleUpload = () => {
     if (!file) return;
-    navigate('/app/processing', { state: { file } });
+    navigate('/app/processing', { state: { file, saveToHistory } });
   };
 
   return (
@@ -97,6 +98,15 @@ const Upload = () => {
       )}
 
       <div className="flex justify-end pt-6 border-t border-border-subtle">
+        <label className="mr-auto flex items-center gap-3 text-sm text-on-surface cursor-pointer">
+          <input
+            type="checkbox"
+            checked={saveToHistory}
+            onChange={(e) => setSaveToHistory(e.target.checked)}
+            className="rounded border-border-subtle text-primary focus:ring-primary"
+          />
+          Salvar análise no histórico
+        </label>
         <button
           onClick={handleUpload}
           disabled={!file || !!error}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useFilters } from '../../context/FilterContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import api from '../../services/api';
+import { buildFilterParams } from '../../utils/filterParams';
 
 const Grupos = () => {
   const { toggleDrawer, activeFilterCount, filters } = useFilters();
@@ -13,12 +14,7 @@ const Grupos = () => {
       setLoading(true);
       try {
         const response = await api.get('/dashboard/metrics', {
-          params: {
-            start_date: filters.startDate,
-            end_date: filters.endDate,
-            store: filters.store,
-            flag: filters.flag
-          }
+          params: buildFilterParams(filters)
         });
         setData(response.data);
       } catch (error) {

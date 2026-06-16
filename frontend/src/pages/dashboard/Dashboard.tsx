@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useFilters } from '../../context/FilterContext';
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { buildFilterParams } from '../../utils/filterParams';
 
 const Dashboard = () => {
   const { filters, toggleDrawer, activeFilterCount } = useFilters();
@@ -13,12 +14,7 @@ const Dashboard = () => {
       setLoading(true);
       try {
         const response = await api.get('/dashboard/metrics', {
-          params: {
-            start_date: filters.startDate,
-            end_date: filters.endDate,
-            store: filters.store,
-            flag: filters.flag
-          }
+          params: buildFilterParams(filters)
         });
         setData(response.data);
       } catch (error) {

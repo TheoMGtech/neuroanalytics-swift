@@ -16,6 +16,7 @@ const Processing = () => {
 
   const location = useLocation();
   const file = location.state?.file;
+  const saveToHistory = !!location.state?.saveToHistory;
 
   useEffect(() => {
     if (!file) {
@@ -27,7 +28,9 @@ const Processing = () => {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('save_analysis', 'true');
+        if (saveToHistory) {
+          formData.append('save_analysis', 'true');
+        }
 
         setCurrentStep(2);
         
@@ -51,7 +54,7 @@ const Processing = () => {
     };
 
     processFile();
-  }, [file, navigate]);
+  }, [file, navigate, saveToHistory]);
 
   if (errorMsg) {
     return (

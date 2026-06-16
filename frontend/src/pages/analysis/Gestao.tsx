@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useFilters } from '../../context/FilterContext';
 import api from '../../services/api';
+import { buildFilterParams } from '../../utils/filterParams';
 
 const Gestao = () => {
   const { toggleDrawer, activeFilterCount, filters } = useFilters();
@@ -12,12 +13,7 @@ const Gestao = () => {
       setLoading(true);
       try {
         const response = await api.get('/dashboard/metrics', {
-          params: {
-            start_date: filters.startDate,
-            end_date: filters.endDate,
-            store: filters.store,
-            flag: filters.flag
-          }
+          params: buildFilterParams(filters)
         });
         if (response.data.managementData) {
           setData(response.data.managementData);

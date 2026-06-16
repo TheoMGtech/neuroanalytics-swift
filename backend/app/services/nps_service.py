@@ -161,6 +161,17 @@ def calculate_nps_with_ai(df: pd.DataFrame) -> dict:
         s_ai_n = len(group[group['nps_class_ai'] == 'neutral'])
         s_ai_nps = ((s_ai_p - s_ai_d) / s_total) * 100 if s_total > 0 else 0
         
+        top_problema = None
+        top_elogio = None
+        if 'sentiment' in group.columns and 'category' in group.columns:
+            neg_cats = group[(group['sentiment'] == 'Negativo') & (group['category'].notna())]['category']
+            if not neg_cats.empty:
+                top_problema = str(neg_cats.mode().iloc[0])
+                
+            pos_cats = group[(group['sentiment'] == 'Positivo') & (group['category'].notna())]['category']
+            if not pos_cats.empty:
+                top_elogio = str(pos_cats.mode().iloc[0])
+
         store_results.append({
             "store_name": str(store),
             "flag": str(flag),
@@ -173,6 +184,8 @@ def calculate_nps_with_ai(df: pd.DataFrame) -> dict:
             "original_promoters": s_orig_p,
             "original_neutral": s_orig_n,
             "original_detractors": s_orig_d,
+            "top_problema": top_problema,
+            "top_elogio": top_elogio,
             "is_outlier": False
         })
         
@@ -220,14 +233,4 @@ def calculate_nps_with_ai(df: pd.DataFrame) -> dict:
         "management_summary": management_summary
     }
 
-    return {
-        "general": {
-            "total_reviews": total,
-            "nps_score": float(nps_score),
-            "promoters": promoters,
-            "neutral": neutral,
-            "detractors": detractors
-        },
-        "store_results": store_results,
-        "management_summary": management_summary
-    }
+

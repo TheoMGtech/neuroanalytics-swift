@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { useFilters } from '../../context/FilterContext';
 import api from '../../services/api';
+import { buildFilterParams } from '../../utils/filterParams';
 
 const ComparacaoNPS = () => {
   const { filters, toggleDrawer, activeFilterCount } = useFilters();
@@ -11,12 +12,7 @@ const ComparacaoNPS = () => {
     const fetchMetrics = async () => {
       try {
         const response = await api.get('/dashboard/metrics', {
-          params: {
-            start_date: filters.startDate,
-            end_date: filters.endDate,
-            store: filters.store,
-            flag: filters.flag
-          }
+          params: buildFilterParams(filters)
         });
         setData(response.data);
       } catch (error) {

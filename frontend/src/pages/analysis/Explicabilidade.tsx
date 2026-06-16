@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useFilters } from '../../context/FilterContext';
 import api from '../../services/api';
+import { buildFilterParams } from '../../utils/filterParams';
 
 const Explicabilidade = () => {
   const { filters, toggleDrawer, activeFilterCount } = useFilters();
@@ -11,12 +12,12 @@ const Explicabilidade = () => {
     const fetchData = async () => {
       try {
         const metricsRes = await api.get('/dashboard/metrics', {
-          params: { start_date: filters.startDate, end_date: filters.endDate, store: filters.store, flag: filters.flag }
+          params: buildFilterParams(filters)
         });
         setMetrics({ reclassifiedCount: metricsRes.data.reclassifiedCount || 0 });
 
         const commentsRes = await api.get('/dashboard/comments', {
-          params: { page: 1, limit: 100, store: filters.store, flag: filters.flag }
+          params: { ...buildFilterParams(filters), page: 1, limit: 100 }
         });
         
         // Filtrar apenas os que foram reclassificados
