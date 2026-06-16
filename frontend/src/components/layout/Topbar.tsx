@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom';
+import { useFilters } from '../../context/FilterContext';
 
 const Topbar = () => {
   const navigate = useNavigate();
+  const { toggleDrawer, activeFilterCount } = useFilters();
   const user = JSON.parse(localStorage.getItem('user') || '{"name": "Usuário"}');
   
   const getInitials = (name: string) => {
@@ -28,6 +30,21 @@ const Topbar = () => {
       </div>
 
       <div className="flex items-center gap-6">
+        <button 
+          onClick={toggleDrawer}
+          className="flex items-center gap-2 px-3 py-1.5 border border-border-subtle rounded-lg hover:bg-surface-faint transition-colors relative"
+        >
+          <span className="material-symbols-outlined text-on-surface-variant">filter_alt</span>
+          <span className="font-body-sm font-medium text-on-surface-variant">Filtros</span>
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-primary text-on-primary text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+
+        <div className="h-6 w-px bg-border-subtle"></div>
+
         <div className="flex items-center gap-3 text-on-surface-variant">
           <button className="hover:text-primary transition-colors cursor-pointer">
             <span className="material-symbols-outlined">notifications</span>

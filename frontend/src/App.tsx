@@ -8,10 +8,15 @@ import Dashboard from './pages/dashboard/Dashboard';
 import Upload from './pages/analysis/Upload';
 import Processing from './pages/analysis/Processing';
 import Preview from './pages/analysis/Preview';
-import Metrics from './pages/metrics/Metrics';
-import Sentiment from './pages/metrics/Sentiment';
-import Outliers from './pages/metrics/Outliers';
-import Categories from './pages/metrics/Categories';
+
+// Novas Telas de Análise
+import ComparacaoNPS from './pages/analysis/ComparacaoNPS';
+import Gestao from './pages/analysis/Gestao';
+import Grupos from './pages/analysis/Grupos';
+import Lojas from './pages/analysis/Lojas';
+import Explicabilidade from './pages/analysis/Explicabilidade';
+import Comentarios from './pages/analysis/Comentarios';
+
 import HistoryList from './pages/history/HistoryList';
 import HistoryDetail from './pages/history/HistoryDetail';
 import Settings from './pages/settings/Settings';
@@ -36,10 +41,12 @@ function App() {
         <Route path="preview" element={<Preview />} />
         
         {/* Visualizations */}
-        <Route path="metrics" element={<Metrics />} />
-        <Route path="sentiment" element={<Sentiment />} />
-        <Route path="outliers" element={<Outliers />} />
-        <Route path="categories" element={<Categories />} />
+        <Route path="comparacao" element={<ComparacaoNPS />} />
+        <Route path="gestao" element={<Gestao />} />
+        <Route path="grupos" element={<Grupos />} />
+        <Route path="lojas" element={<Lojas />} />
+        <Route path="explicabilidade" element={<Explicabilidade />} />
+        <Route path="comentarios" element={<Comentarios />} />
         
         {/* History */}
         <Route path="history" element={<HistoryList />} />

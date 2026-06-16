@@ -1,7 +1,6 @@
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -22,18 +21,31 @@ model User {
 }
 
 model Analysis {
-  id            Int                 @id @default(autoincrement())
-  fileName      String              @map("file_name")
-  createdAt     DateTime            @default(now()) @map("created_at")
-  totalReviews  Int                 @map("total_reviews")
-  generalNps    Float               @map("general_nps")
-  promoters     Int
-  neutral       Int
-  detractors    Int
-  saved         Boolean             @default(true)
+  id                Int                 @id @default(autoincrement())
+  fileName          String              @map("file_name")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  totalReviews      Int                 @map("total_reviews")
   
-  userId        Int                 @map("user_id")
-  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // AI metrics
+  generalNps        Float               @map("general_nps")
+  promoters         Int
+  neutral           Int
+  detractors        Int
+  
+  // Original metrics (before AI reclassification)
+  originalNps       Float               @default(0) @map("original_nps")
+  originalPromoters Int                 @default(0) @map("original_promoters")
+  originalNeutral   Int                 @default(0) @map("original_neutral")
+  originalDetractors Int                @default(0) @map("original_detractors")
+  
+  // Reclassification stats
+  reclassifiedCount Int                 @default(0) @map("reclassified_count")
+  confidenceAvg     Float               @default(0) @map("confidence_avg")
+
+  saved             Boolean             @default(true)
+  
+  userId            Int                 @map("user_id")
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   storeResults      StoreResult[]
   commentResults    CommentResult[]
@@ -43,47 +55,64 @@ model Analysis {
 }
 
 model StoreResult {
-  id           Int      @id @default(autoincrement())
-  analysisId   Int      @map("analysis_id")
-  storeName    String   @map("store_name")
-  flag         String
-  totalReviews Int      @map("total_reviews")
-  nps          Float
-  promoters    Int
-  neutral      Int
-  detractors   Int
-  isOutlier    Boolean  @map("is_outlier")
+  id                 Int      @id @default(autoincrement())
+  analysisId         Int      @map("analysis_id")
+  storeName          String   @map("store_name")
+  flag               String
+  totalReviews       Int      @map("total_reviews")
+  
+  nps                Float
+  promoters          Int
+  neutral            Int
+  detractors         Int
+  
+  originalNps        Float    @default(0) @map("original_nps")
+  originalPromoters  Int      @default(0) @map("original_promoters")
+  originalNeutral    Int      @default(0) @map("original_neutral")
+  originalDetractors Int      @default(0) @map("original_detractors")
 
-  analysis     Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  isOutlier          Boolean  @map("is_outlier")
+
+  analysis           Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
 
   @@map("store_results")
 }
 
 model CommentResult {
-  id          Int      @id @default(autoincrement())
-  analysisId  Int      @map("analysis_id")
-  storeName   String   @map("store_name")
-  commentText String   @map("comment_text")
-  sentiment   String
-  category    String
-  confidence  Float
+  id                     Int      @id @default(autoincrement())
+  analysisId             Int      @map("analysis_id")
+  storeName              String   @map("store_name")
+  commentText            String   @map("comment_text")
+  sentiment              String
+  category               String
+  confidence             Float
+  
+  originalClassification String   @default("neutro") @map("original_classification")
+  aiClassification       String   @default("neutro") @map("ai_classification")
+  reclassificationRule   String?  @map("reclassification_rule")
 
-  analysis    Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  analysis               Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
 
   @@map("comment_results")
 }
 
 model ManagementSummary {
-  id           Int      @id @default(autoincrement())
-  analysisId   Int      @map("analysis_id")
-  flag         String
-  totalReviews Int      @map("total_reviews")
-  nps          Float
-  promoters    Int
-  neutral      Int
-  detractors   Int
+  id                 Int      @id @default(autoincrement())
+  analysisId         Int      @map("analysis_id")
+  flag               String
+  totalReviews       Int      @map("total_reviews")
+  
+  nps                Float
+  promoters          Int
+  neutral            Int
+  detractors         Int
+  
+  originalNps        Float    @default(0) @map("original_nps")
+  originalPromoters  Int      @default(0) @map("original_promoters")
+  originalNeutral    Int      @default(0) @map("original_neutral")
+  originalDetractors Int      @default(0) @map("original_detractors")
 
-  analysis     Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  analysis           Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
 
   @@map("management_summary")
 }

@@ -42,8 +42,8 @@ const Categories = () => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#2A2A2A" />
-                <XAxis type="number" stroke="#8f7067" />
-                <YAxis dataKey="name" type="category" stroke="#8f7067" width={150} tick={{ fill: '#e6e0df' }} />
+                <XAxis type="number" stroke="#1C2B44" />
+                <YAxis dataKey="name" type="category" stroke="#1C2B44" width={150} tick={{ fill: '#1C2B44' }} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#1A1A1A', borderColor: '#2A2A2A', borderRadius: '8px', color: '#FFFFFF' }}
                   itemStyle={{ color: '#E30613', fontWeight: 'bold' }}
