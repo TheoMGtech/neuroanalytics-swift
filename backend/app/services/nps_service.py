@@ -1,12 +1,26 @@
 import pandas as pd
 
-def classify_nps(score: float) -> str:
-    if score >= 9:
-        return 'promoter'
-    elif score >= 7:
+def classify_nps(score) -> str:
+    if isinstance(score, str):
+        s = score.lower().strip()
+        if 'promotor' in s:
+            return 'promoter'
+        elif 'neutr' in s:
+            return 'neutral'
+        elif 'detrator' in s:
+            return 'detractor'
         return 'neutral'
-    else:
-        return 'detractor'
+
+    try:
+        score_val = float(score)
+        if score_val >= 9:
+            return 'promoter'
+        elif score_val >= 7:
+            return 'neutral'
+        else:
+            return 'detractor'
+    except (ValueError, TypeError):
+        return 'neutral'
 
 def calculate_nps(df: pd.DataFrame) -> dict:
     """

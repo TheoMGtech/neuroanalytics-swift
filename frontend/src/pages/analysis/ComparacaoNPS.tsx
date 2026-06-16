@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { useFilters } from '../../context/FilterContext';
 import api from '../../services/api';
@@ -12,8 +12,8 @@ const ComparacaoNPS = () => {
       try {
         const response = await api.get('/dashboard/metrics', {
           params: {
-            start_date: filters.period.start,
-            end_date: filters.period.end,
+            start_date: filters.startDate,
+            end_date: filters.endDate,
             store: filters.store,
             flag: filters.flag
           }

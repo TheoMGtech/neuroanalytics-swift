@@ -15,7 +15,7 @@ const Sentiment = () => {
 
   useEffect(() => {
     api.get('/history').then(res => setHistory(res.data)).catch(console.error);
-    api.get('/dashboard/sentiments').then(res => {
+    api.get('/dashboard/sentiments').then(() => {
       // populate stores from history or initial load if needed
       // since sentiments might not return store list easily, we can fetch metrics or just rely on what's available
     }).catch(console.error);

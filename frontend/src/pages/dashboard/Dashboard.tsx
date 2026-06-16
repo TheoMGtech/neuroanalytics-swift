@@ -14,8 +14,8 @@ const Dashboard = () => {
       try {
         const response = await api.get('/dashboard/metrics', {
           params: {
-            start_date: filters.period.start,
-            end_date: filters.period.end,
+            start_date: filters.startDate,
+            end_date: filters.endDate,
             store: filters.store,
             flag: filters.flag
           }
@@ -172,21 +172,39 @@ const Dashboard = () => {
               </p>
 
               <div className="space-y-4">
-                <div className="flex gap-4 p-4 rounded-lg bg-status-error/10 border border-status-error/20">
-                  <span className="material-symbols-outlined text-status-error mt-0.5">sentiment_dissatisfied</span>
-                  <div>
-                    <h4 className="font-bold text-status-error text-sm">Promotores com comentários negativos</h4>
-                    <p className="text-status-error/80 text-xs mt-1">Muitos clientes que deram nota 9 ou 10 relataram problemas graves de atendimento e demora na fila, sendo reclassificados para Detratores.</p>
-                  </div>
-                </div>
+                {data?.insights?.length > 0 ? (
+                  data.insights.map((insight: any, idx: number) => {
+                    // Define styles and icons based on the type
+                    let bgClass = "bg-surface border-border-subtle";
+                    let textClass = "text-on-surface";
+                    let iconClass = "text-on-surface-variant";
+                    let icon = insight.icon || "info";
 
-                <div className="flex gap-4 p-4 rounded-lg bg-secondary/10 border border-secondary/20">
-                  <span className="material-symbols-outlined text-secondary mt-0.5">sentiment_neutral</span>
-                  <div>
-                    <h4 className="font-bold text-secondary text-sm">Neutros com viés de detração</h4>
-                    <p className="text-secondary/80 text-xs mt-1">Avaliações notas 7 e 8 com comentários indicando que o cliente não retornaria à loja foram reclassificadas.</p>
-                  </div>
-                </div>
+                    if (insight.type === "error" || (insight.title && insight.title.includes("Detrator"))) {
+                      bgClass = "bg-status-error/10 border-status-error/20";
+                      textClass = "text-status-error";
+                      iconClass = "text-status-error";
+                    } else if (insight.type === "info" || insight.type === "success") {
+                      bgClass = "bg-secondary/10 border-secondary/20";
+                      textClass = "text-secondary";
+                      iconClass = "text-secondary";
+                    }
+
+                    return (
+                      <div key={idx} className={`flex gap-4 p-4 rounded-lg border ${bgClass}`}>
+                        <span className={`material-symbols-outlined mt-0.5 ${iconClass}`}>{icon}</span>
+                        <div>
+                          <h4 className={`font-bold text-sm ${textClass}`}>
+                            {insight.title || insight.rule}
+                          </h4>
+                          <p className={`text-xs mt-1 ${textClass}/80`}>{insight.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-on-surface-variant text-sm text-center py-4">Nenhuma reclassificação significativa nesta análise.</p>
+                )}
               </div>
 
               <div className="mt-6 pt-4 border-t border-border-subtle">

@@ -28,8 +28,8 @@ const Comentarios = () => {
             page,
             limit,
             search: searchTerm,
-            start_date: filters.period.start,
-            end_date: filters.period.end,
+            start_date: filters.startDate,
+            end_date: filters.endDate,
             store: filters.store,
             flag: filters.flag
           }

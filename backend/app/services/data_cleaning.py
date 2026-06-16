@@ -10,9 +10,9 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     # Remover linhas onde loja ou nota são nulos
     df = df.dropna(subset=['loja', 'nota'])
     
-    # Converter nota para numérico
-    df['nota'] = pd.to_numeric(df['nota'], errors='coerce')
-    df = df.dropna(subset=['nota'])
+    # Se 'nota' for numérico, mantém. Se for string (ex: 'promotor'), não dropamos
+    # Apenas removemos quem tem nota/classificação vazia
+    df = df[df['nota'].notna()]
     
     # Garantir que texto de comentário é string
     if 'comentario' in df.columns:
@@ -21,6 +21,10 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
         df['comentario'] = df['comentário'].fillna('').astype(str)
     else:
         df['comentario'] = ''
+        
+    if 'qtd_clientes' in df.columns:
+        df['qtd_clientes'] = pd.to_numeric(df['qtd_clientes'], errors='coerce').fillna(1).astype(int)
+        df = df.loc[df.index.repeat(df['qtd_clientes'])].reset_index(drop=True)
         
     if 'bandeira' not in df.columns:
         df['bandeira'] = 'Desconhecida'

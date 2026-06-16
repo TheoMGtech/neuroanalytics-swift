@@ -34,6 +34,17 @@ async def upload_file(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao ler arquivo: {str(e)}")
 
+    # Normalizar nomes de colunas para mapeamento
+    df.columns = [str(c).lower().strip() for c in df.columns]
+    
+    # Mapear as colunas reais do arquivo para os nomes esperados pelo backend
+    column_mapping = {
+        'centronv2': 'loja',
+        'flag': 'bandeira',
+        'classificacao': 'nota'
+    }
+    df = df.rename(columns=column_mapping)
+
     if not validate_headers(df):
         raise HTTPException(status_code=400, detail="Colunas obrigatórias não encontradas no arquivo (loja, bandeira, nota)")
 
@@ -88,7 +99,7 @@ async def upload_file(
         analysis_id = analysis.id
         
         # Save store results
-        await db.store_result.create_many(
+        await db.storeresult.create_many(
             data=[
                 {
                     "analysisId": analysis_id,
@@ -109,7 +120,7 @@ async def upload_file(
         )
         
         # Save management summary
-        await db.management_summary.create_many(
+        await db.managementsummary.create_many(
             data=[
                 {
                     "analysisId": analysis_id,
@@ -129,7 +140,7 @@ async def upload_file(
         
         # Save comments (taking top 100 max to avoid huge payload/DB locks in PoC)
         comments_to_save = df.head(100).to_dict('records')
-        await db.comment_result.create_many(
+        await db.commentresult.create_many(
             data=[
                 {
                     "analysisId": analysis_id,

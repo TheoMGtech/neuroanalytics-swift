@@ -55,7 +55,16 @@ async def get_dashboard_metrics(
         if nps >= 50: return "#525f78" # Neutral/Blueish
         return "#E04403" # Red
         
-        {"name": s.storeName, "nps": s.nps, "originalNps": s.originalNps, "color": get_color(s.nps)}
+    store_data = [
+        {
+            "name": s.storeName, 
+            "nps": s.nps, 
+            "originalNps": s.originalNps, 
+            "color": get_color(s.nps),
+            "promoters": s.promoters,
+            "neutral": s.neutral,
+            "detractors": s.detractors
+        }
         for s in store_results
     ]
 
@@ -157,12 +166,41 @@ async def get_dashboard_metrics(
         for m in management_summaries
     ]
 
+    # Buscar motivos de reclassificacao reais da analise
+    reclass_counts = {}
+    if latest_analysis.reclassifiedCount > 0:
+        comments_reclass = await db.commentresult.find_many(
+            where={"analysisId": latest_analysis.id, "reclassificationRule": {"not": None}}
+        )
+        for c in comments_reclass:
+            rule = c.reclassificationRule
+            if rule not in reclass_counts:
+                reclass_counts[rule] = 0
+            reclass_counts[rule] += 1
+            
+    reclassification_reasons = [{"rule": k, "count": v} for k, v in reclass_counts.items()]
+    reclassification_reasons.sort(key=lambda x: x["count"], reverse=True)
+
+    comments_all = await db.commentresult.find_many(where={"analysisId": latest_analysis.id})
+    cat_data = {}
+    for c in comments_all:
+        cat = c.category or "Outros"
+        cls = c.aiClassification
+        if cat not in cat_data:
+            cat_data[cat] = {"category": cat, "promoters": 0, "neutral": 0, "detractors": 0}
+        if cls == "promoter": cat_data[cat]["promoters"] += 1
+        elif cls == "neutral": cat_data[cat]["neutral"] += 1
+        elif cls == "detractor": cat_data[cat]["detractors"] += 1
+    category_data = list(cat_data.values())
+
     return {
         "evolutionData": evolution_data,
         "storeData": store_data,
         "sentimentData": sentiment_data,
         "managementData": management_data,
+        "categoryData": category_data,
         "insights": insights,
+        "reclassificationReasons": reclassification_reasons,
         "totalReviews": latest_analysis.totalReviews,
         "reclassifiedCount": latest_analysis.reclassifiedCount,
         "generalNps": latest_analysis.generalNps,
@@ -349,7 +387,10 @@ async def get_comments_paginated(
                 "reclassificationRule": c.reclassificationRule
             } for c in comments
         ],
-        "total": total,
-        "page": page,
-        "limit": limit
+        "meta": {
+            "totalItems": total,
+            "totalPages": (total + limit - 1) // limit,
+            "page": page,
+            "limit": limit
+        }
     }
