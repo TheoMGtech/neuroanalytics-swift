@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2, Database, Brain, BarChart, AlertTriangle } from 'lucide-react';
 import api from '../../services/api';
+import { testFeaturesEnabled } from '../../config/features';
+import {
+  getActiveAnalysisJob,
+  mergeActiveAnalysisJob,
+  setActiveAnalysisJob,
+} from '../../utils/analysisJob';
 
 const steps = [
   { id: 1, text: 'Enviando arquivo...', icon: Database },
@@ -13,12 +19,116 @@ const Processing = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const startedRef = useRef(false);
 
   const location = useLocation();
   const file = location.state?.file;
   const saveToHistory = !!location.state?.saveToHistory;
+  const jobKey = location.state?.jobKey;
+
+  const stepFromStage = (stage?: string) => {
+    if (stage === 'validating' || stage === 'queued') return 1;
+    if (stage === 'modeling' || stage === 'scoring') return 2;
+    return 3;
+  };
 
   useEffect(() => {
+    if (startedRef.current) return undefined;
+    startedRef.current = true;
+
+    if (testFeaturesEnabled) {
+      const activeJob = getActiveAnalysisJob();
+      if (!file && !activeJob?.jobId) {
+        navigate('/app/upload');
+        return undefined;
+      }
+
+      let interval: number | undefined;
+
+      const pollJob = async (jobId: string) => {
+        try {
+          const response = await api.get(`/upload/jobs/${jobId}`);
+          const payload = response.data;
+          setProgress(payload.progress || 0);
+          setCurrentStep(stepFromStage(payload.stage));
+          mergeActiveAnalysisJob({
+            status: payload.status,
+            stage: payload.stage,
+            progress: payload.progress,
+            analysisId: payload.analysis_id,
+            error: payload.error,
+            updatedAt: payload.updated_at,
+          });
+
+          if (payload.status === 'completed') {
+            if (interval) window.clearInterval(interval);
+            setActiveAnalysisJob(null);
+            setCurrentStep(3);
+            setProgress(100);
+            window.setTimeout(() => {
+              navigate('/app/preview', { state: { result: payload.result } });
+            }, 800);
+          }
+
+          if (payload.status === 'failed') {
+            if (interval) window.clearInterval(interval);
+            setActiveAnalysisJob(null);
+            setErrorMsg(payload.error || 'Erro inesperado ao processar arquivo.');
+          }
+        } catch (error: any) {
+          console.error('Job polling error', error);
+          setErrorMsg(error.response?.data?.detail || 'Nao foi possivel acompanhar a analise em andamento.');
+        }
+      };
+
+      const startAsyncJob = async () => {
+        try {
+          let jobId = activeJob?.jobId;
+          if (!jobId && file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('job_key', jobKey || `${file.name}-${file.size}-${file.lastModified}`);
+            if (saveToHistory) {
+              formData.append('save_analysis', 'true');
+            }
+
+            setCurrentStep(1);
+            const response = await api.post('/upload/async', formData, {
+              headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            const payload = response.data;
+            const createdJobId = String(payload.job_id);
+            jobId = createdJobId;
+            setActiveAnalysisJob({
+              jobId: createdJobId,
+              fileName: payload.file_name || file.name,
+              status: payload.status,
+              stage: payload.stage,
+              progress: payload.progress,
+              analysisId: payload.analysis_id,
+              error: payload.error,
+              createdAt: payload.created_at,
+              updatedAt: payload.updated_at,
+            });
+          }
+
+          if (jobId) {
+            await pollJob(jobId);
+            interval = window.setInterval(() => pollJob(jobId), 3000);
+          }
+        } catch (error: any) {
+          console.error('Upload async error', error);
+          setErrorMsg(error.response?.data?.detail || 'Erro inesperado ao iniciar analise assincrona.');
+        }
+      };
+
+      startAsyncJob();
+      return () => {
+        if (interval) window.clearInterval(interval);
+      };
+    }
+
     if (!file) {
       navigate('/app/upload');
       return;
@@ -33,6 +143,7 @@ const Processing = () => {
         }
 
         setCurrentStep(2);
+        setProgress(35);
         
         const response = await api.post('/upload', formData, {
           headers: {
@@ -41,6 +152,7 @@ const Processing = () => {
         });
 
         setCurrentStep(3);
+        setProgress(100);
         
         // Wait a bit to show step 3
         setTimeout(() => {
@@ -54,7 +166,8 @@ const Processing = () => {
     };
 
     processFile();
-  }, [file, navigate, saveToHistory]);
+    return undefined;
+  }, [file, jobKey, navigate, saveToHistory]);
 
   if (errorMsg) {
     return (
@@ -122,7 +235,9 @@ const Processing = () => {
       </div>
       
       <p className="text-center text-sm text-gray-400">
-        Este processo pode levar alguns segundos dependendo do tamanho da base de dados.
+        {testFeaturesEnabled
+          ? `Voce pode navegar pelo sistema. A analise continua em segundo plano (${progress}%).`
+          : 'Este processo pode levar alguns segundos dependendo do tamanho da base de dados.'}
       </p>
     </div>
   );

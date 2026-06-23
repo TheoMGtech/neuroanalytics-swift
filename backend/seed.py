@@ -68,6 +68,12 @@ async def seed():
         }
     )
     
+    existing_analyses = await db.analysis.find_many(where={"userId": user.id})
+    if any(str(analysis.fileName).startswith("avaliacoes_mes_offset_") for analysis in existing_analyses):
+        logger.info("Sample analyses already exist. Skipping analysis seed.")
+        await db.disconnect()
+        return
+
     logger.info("Seeding Analyses over 3 months...")
     for month_offset in [2, 1, 0]:
         created_at = datetime.now() - timedelta(days=30 * month_offset)

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps import get_current_user_email
+from app.core.config import settings
 from app.db.database import db
 
 router = APIRouter()
@@ -16,10 +17,27 @@ async def _get_user(email: str):
 @router.get("/history")
 async def get_history(email: str = Depends(get_current_user_email)):
     user = await _get_user(email)
-    return await db.analysis.find_many(
+    rows = await db.analysis.find_many(
         where={"userId": user.id},
         order={"createdAt": "desc"},
     )
+    if settings.ENVIRONMENT != "test" and not settings.ENABLE_TEST_FEATURES:
+        return rows
+
+    seen = set()
+    deduped = []
+    for item in rows:
+        key = (
+            item.fileName,
+            item.totalReviews,
+            round(float(item.generalNps), 4),
+            round(float(item.originalNps), 4),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+    return deduped
 
 
 @router.get("/history/{id}")

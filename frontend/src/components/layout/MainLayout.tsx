@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import FilterDrawer from './FilterDrawer';
 import { FilterProvider } from '../../context/FilterContext';
+import AnalysisJobWatcher from '../analysis/AnalysisJobWatcher';
 
 const MainLayout = () => {
   return (
@@ -16,6 +17,7 @@ const MainLayout = () => {
           </main>
         </div>
         <FilterDrawer />
+        <AnalysisJobWatcher />
       </div>
     </FilterProvider>
   );

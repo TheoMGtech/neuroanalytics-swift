@@ -1,13 +1,23 @@
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import { testFeaturesEnabled } from '../../config/features';
+import { ActiveAnalysisJob, getActiveAnalysisJob } from '../../utils/analysisJob';
 
 const Upload = () => {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveToHistory, setSaveToHistory] = useState(testFeaturesEnabled);
+  const [activeJob, setActiveJob] = useState<ActiveAnalysisJob | null>(null);
+
+  useEffect(() => {
+    if (!testFeaturesEnabled) return;
+    const job = getActiveAnalysisJob();
+    if (job && !['completed', 'failed'].includes(job.status)) {
+      setActiveJob(job);
+    }
+  }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setError(null);
@@ -36,7 +46,8 @@ const Upload = () => {
 
   const handleUpload = () => {
     if (!file) return;
-    navigate('/app/processing', { state: { file, saveToHistory } });
+    const jobKey = testFeaturesEnabled && crypto.randomUUID ? crypto.randomUUID() : undefined;
+    navigate('/app/processing', { state: { file, saveToHistory, jobKey } });
   };
 
   return (
@@ -45,6 +56,26 @@ const Upload = () => {
         <h1 className="font-headline-lg text-headline-lg font-bold text-on-surface mb-2">Nova Análise</h1>
         <p className="font-body-md text-on-surface-variant">Envie a base de dados com as avaliações dos seus clientes.</p>
       </div>
+
+      {testFeaturesEnabled && activeJob && (
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-primary animate-pulse">model_training</span>
+            <div>
+              <p className="font-bold text-on-surface">Existe uma análise em andamento</p>
+              <p className="text-sm text-on-surface-variant">
+                {activeJob.fileName} · {activeJob.progress || 0}% concluído
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/app/processing')}
+            className="bg-primary text-on-primary font-bold px-4 py-2 rounded-lg hover:bg-surface-tint transition-colors text-sm"
+          >
+            Acompanhar
+          </button>
+        </div>
+      )}
 
       <div 
         {...getRootProps()} 

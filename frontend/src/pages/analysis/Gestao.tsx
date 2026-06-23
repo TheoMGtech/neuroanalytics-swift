@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useFilters } from '../../context/FilterContext';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import api from '../../services/api';
 import { buildFilterParams } from '../../utils/filterParams';
+import { testFeaturesEnabled } from '../../config/features';
 
 const Gestao = () => {
   const { toggleDrawer, activeFilterCount, filters } = useFilters();
@@ -31,6 +33,46 @@ const Gestao = () => {
 
   const regularData = data.find(d => d.flag === 'REGULAR') || { flag: 'REGULAR', nps: 0, totalReviews: 0, promoters: 0, neutral: 0, detractors: 0 };
   const tocadoraData = data.find(d => d.flag === 'TOCADORA') || { flag: 'TOCADORA', nps: 0, totalReviews: 0, promoters: 0, neutral: 0, detractors: 0 };
+  const percent = (value: number, total: number) => total ? Number(((value / total) * 100).toFixed(1)) : 0;
+  const npsChartData = [
+    { gestao: 'Regular', original: Number((regularData.originalNps || 0).toFixed(1)), ajustado: Number((regularData.nps || 0).toFixed(1)) },
+    { gestao: 'Tocadora', original: Number((tocadoraData.originalNps || 0).toFixed(1)), ajustado: Number((tocadoraData.nps || 0).toFixed(1)) },
+  ];
+  const mixChartData = [
+    {
+      gestao: 'Regular',
+      Promotores: percent(regularData.promoters || 0, regularData.totalReviews || 0),
+      Neutros: percent(regularData.neutral || 0, regularData.totalReviews || 0),
+      Detratores: percent(regularData.detractors || 0, regularData.totalReviews || 0),
+    },
+    {
+      gestao: 'Tocadora',
+      Promotores: percent(tocadoraData.promoters || 0, tocadoraData.totalReviews || 0),
+      Neutros: percent(tocadoraData.neutral || 0, tocadoraData.totalReviews || 0),
+      Detratores: percent(tocadoraData.detractors || 0, tocadoraData.totalReviews || 0),
+    },
+  ];
+  const topicComparison = (field: 'topProblems' | 'topPraises') => {
+    const labels = Array.from(new Set([
+      ...(regularData[field] || []).map((item: any) => item.name),
+      ...(tocadoraData[field] || []).map((item: any) => item.name),
+    ])).slice(0, 6);
+    return labels.map((label) => ({
+      categoria: label,
+      Regular: regularData[field]?.find((item: any) => item.name === label)?.count || 0,
+      Tocadora: tocadoraData[field]?.find((item: any) => item.name === label)?.count || 0,
+    }));
+  };
+  const npsGap = (regularData.nps || 0) - (tocadoraData.nps || 0);
+  const reclassImpactRegular = (regularData.nps || 0) - (regularData.originalNps || 0);
+  const reclassImpactTocadora = (tocadoraData.nps || 0) - (tocadoraData.originalNps || 0);
+  const insights = [
+    npsGap >= 0
+      ? `Regular está ${npsGap.toFixed(1)} pontos acima de Tocadora no NPS ajustado.`
+      : `Tocadora está ${Math.abs(npsGap).toFixed(1)} pontos acima de Regular no NPS ajustado.`,
+    `A reclassificação por comentário alterou Regular em ${reclassImpactRegular.toFixed(1)} pontos e Tocadora em ${reclassImpactTocadora.toFixed(1)} pontos.`,
+    `O principal problema em Regular é ${regularData.topProblems?.[0]?.name || 'sem destaque'}; em Tocadora é ${tocadoraData.topProblems?.[0]?.name || 'sem destaque'}.`,
+  ];
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12">
@@ -64,6 +106,7 @@ const Gestao = () => {
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           
           {/* REGULAR */}
@@ -141,6 +184,95 @@ const Gestao = () => {
           </div>
 
         </div>
+
+        {testFeaturesEnabled && (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+              <div className="bg-surface rounded-xl border border-border-subtle shadow-sm p-6">
+                <h3 className="font-headline-md font-bold text-on-surface mb-4">NPS Original x NPS Ajustado</h3>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={npsChartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E0E0" />
+                      <XAxis dataKey="gestao" axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} domain={[0, 100]} />
+                      <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E0E0E0' }} />
+                      <Legend />
+                      <Bar dataKey="original" name="NPS Original" fill="#8d827c" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="ajustado" name="NPS Ajustado" fill="#aa3100" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="bg-surface rounded-xl border border-border-subtle shadow-sm p-6">
+                <h3 className="font-headline-md font-bold text-on-surface mb-4">Composição por classificação ajustada</h3>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={mixChartData} layout="vertical" margin={{ top: 10, right: 20, left: 20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E0E0E0" />
+                      <XAxis type="number" unit="%" axisLine={false} tickLine={false} />
+                      <YAxis dataKey="gestao" type="category" axisLine={false} tickLine={false} width={80} />
+                      <Tooltip formatter={(value: number) => `${value}%`} contentStyle={{ borderRadius: '8px', border: '1px solid #E0E0E0' }} />
+                      <Legend />
+                      <Bar dataKey="Promotores" stackId="a" fill="#346E4A" />
+                      <Bar dataKey="Neutros" stackId="a" fill="#525f78" />
+                      <Bar dataKey="Detratores" stackId="a" fill="#E04403" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+              <div className="bg-surface rounded-xl border border-border-subtle shadow-sm p-6">
+                <h3 className="font-headline-md font-bold text-on-surface mb-4">Problemas que puxam a diferença</h3>
+                <div className="h-[320px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topicComparison('topProblems')} layout="vertical" margin={{ top: 10, right: 20, left: 70, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E0E0E0" />
+                      <XAxis type="number" axisLine={false} tickLine={false} />
+                      <YAxis dataKey="categoria" type="category" axisLine={false} tickLine={false} width={130} fontSize={12} />
+                      <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E0E0E0' }} />
+                      <Legend />
+                      <Bar dataKey="Regular" fill="#aa3100" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="Tocadora" fill="#525f78" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="bg-surface rounded-xl border border-border-subtle shadow-sm p-6">
+                <h3 className="font-headline-md font-bold text-on-surface mb-4">Elogios que sustentam o resultado</h3>
+                <div className="h-[320px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topicComparison('topPraises')} layout="vertical" margin={{ top: 10, right: 20, left: 70, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E0E0E0" />
+                      <XAxis type="number" axisLine={false} tickLine={false} />
+                      <YAxis dataKey="categoria" type="category" axisLine={false} tickLine={false} width={130} fontSize={12} />
+                      <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E0E0E0' }} />
+                      <Legend />
+                      <Bar dataKey="Regular" fill="#346E4A" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="Tocadora" fill="#8390aa" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-surface rounded-xl border border-border-subtle shadow-sm p-6 mt-6">
+              <h3 className="font-headline-md font-bold text-on-surface mb-4">Insights executivos da diferença</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {insights.map((insight) => (
+                  <div key={insight} className="p-4 rounded-lg border border-border-subtle bg-surface-faint text-sm text-on-surface">
+                    {insight}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+        </>
       )}
     </div>
   );
