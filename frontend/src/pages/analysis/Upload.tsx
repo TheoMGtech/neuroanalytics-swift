@@ -1,12 +1,13 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
+import { testFeaturesEnabled } from '../../config/features';
 
 const Upload = () => {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [saveToHistory, setSaveToHistory] = useState(false);
+  const [saveToHistory, setSaveToHistory] = useState(testFeaturesEnabled);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setError(null);

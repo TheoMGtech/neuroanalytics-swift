@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     APP_NAME: str = "NeuroAnalytics"
     ENVIRONMENT: str = "development"
+    ENABLE_TEST_FEATURES: bool = False
     
     BACKEND_HOST: str = "0.0.0.0"
     BACKEND_PORT: int = 8000
@@ -12,6 +13,8 @@ class Settings(BaseSettings):
     
     MAX_UPLOAD_SIZE_MB: int = 30
     ALLOWED_EXTENSIONS: str = ".csv,.xlsx,.xls"
+    LOW_CONFIDENCE_THRESHOLD: float = 0.70
+    DATA_DIR: str = "../data"
     
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001,http://localhost:5173"
 

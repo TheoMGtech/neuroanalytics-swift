@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { useFilters } from '../../context/FilterContext';
 import api from '../../services/api';
 import { buildFilterParams } from '../../utils/filterParams';
+import { testFeaturesEnabled } from '../../config/features';
 
 const ComparacaoNPS = () => {
   const { filters, toggleDrawer, activeFilterCount } = useFilters();
@@ -27,6 +28,9 @@ const ComparacaoNPS = () => {
     oldNps: Math.round(item.originalNps || item.nps),
     aiNps: Math.round(item.nps)
   })) || [];
+  const distribution = data?.distributionComparison || [];
+  const reclassificationReasons = data?.reclassificationReasons || [];
+  const totalReviews = data?.totalReviews || 0;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12">
@@ -77,65 +81,112 @@ const ComparacaoNPS = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-surface rounded-xl border border-border-subtle shadow-sm p-6">
           <h3 className="font-headline-md font-bold text-on-surface mb-4">Impacto na Classificação</h3>
-          <p className="text-sm text-on-surface-variant mb-6">Como a IA redistribuiu os clientes com base nos comentários.</p>
+          <p className="text-sm text-on-surface-variant mb-6">
+            {testFeaturesEnabled ? 'Regras realmente aplicadas aos comentários salvos na análise.' : 'Como a IA redistribuiu os clientes com base nos comentários.'}
+          </p>
           
           <div className="space-y-6">
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="font-bold">Promotores Reclassificados</span>
-                <span className="text-status-error font-bold">-12%</span>
-              </div>
-              <p className="text-xs text-on-surface-variant">Clientes que deram nota 9-10 mas relataram problemas (ex: "A carne é boa mas demorou muito para entregar").</p>
-            </div>
-            
-            <hr className="border-border-subtle" />
-            
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="font-bold">Neutros Reclassificados</span>
-                <span className="text-status-error font-bold">-8%</span>
-              </div>
-              <p className="text-xs text-on-surface-variant">Clientes que deram nota 7-8 mas mostraram viés claro de detração no comentário.</p>
-            </div>
-            
-            <hr className="border-border-subtle" />
-            
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="font-bold">Detratores Identificados</span>
-                <span className="text-status-error font-bold">+20%</span>
-              </div>
-              <p className="text-xs text-on-surface-variant">O total de detratores/tocadores aumentou significativamente com o ajuste da IA.</p>
-            </div>
+            {testFeaturesEnabled ? (
+              reclassificationReasons.length ? reclassificationReasons.map((reason: any) => (
+                <div key={reason.rule}>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="font-bold">{reason.rule}</span>
+                    <span className="text-primary font-bold">
+                      {reason.count.toLocaleString()} ({totalReviews ? ((reason.count / totalReviews) * 100).toFixed(1) : '0.0'}%)
+                    </span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant">Reclassificação motivada por divergência entre a nota NPS e o sentimento textual.</p>
+                  <hr className="border-border-subtle mt-4" />
+                </div>
+              )) : (
+                <p className="text-sm text-on-surface-variant">Nenhuma reclassificação encontrada para o recorte atual.</p>
+              )
+            ) : (
+              <>
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="font-bold">Promotores Reclassificados</span>
+                    <span className="text-status-error font-bold">-12%</span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant">Clientes que deram nota 9-10 mas relataram problemas (ex: "A carne é boa mas demorou muito para entregar").</p>
+                </div>
+                <hr className="border-border-subtle" />
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="font-bold">Neutros Reclassificados</span>
+                    <span className="text-status-error font-bold">-8%</span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant">Clientes que deram nota 7-8 mas mostraram viés claro de detração no comentário.</p>
+                </div>
+                <hr className="border-border-subtle" />
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="font-bold">Detratores Identificados</span>
+                    <span className="text-status-error font-bold">+20%</span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant">O total de detratores/tocadores aumentou significativamente com o ajuste da IA.</p>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
         <div className="bg-surface rounded-xl border border-border-subtle shadow-sm p-6">
           <h3 className="font-headline-md font-bold text-on-surface mb-4">Distribuição Comparativa</h3>
-          <div className="flex h-[200px] gap-8 mt-8">
-            <div className="flex-1 flex flex-col justify-end">
-              <div className="flex flex-col text-center">
-                <div className="h-[120px] bg-status-success/60 rounded-t-lg flex items-center justify-center text-white font-bold text-sm">60%</div>
-                <div className="h-[30px] bg-secondary/60 flex items-center justify-center text-white font-bold text-sm">15%</div>
-                <div className="h-[50px] bg-status-error/60 flex items-center justify-center text-white font-bold text-sm">25%</div>
+          {testFeaturesEnabled ? (
+            <>
+              <div className="space-y-4 mt-6">
+                {distribution.map((item: any) => (
+                  <div key={item.label}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-bold">{item.label}</span>
+                      <span className="text-on-surface-variant">
+                        Original {item.originalPercent.toFixed(1)}% · IA {item.aiPercent.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="h-3 rounded bg-surface-container overflow-hidden">
+                        <div className="h-full bg-on-surface-variant/40" style={{ width: `${item.originalPercent}%` }}></div>
+                      </div>
+                      <div className="h-3 rounded bg-surface-container overflow-hidden">
+                        <div className="h-full bg-primary" style={{ width: `${item.aiPercent}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <span className="text-center text-sm font-bold mt-4">Original</span>
-            </div>
-            
-            <div className="flex-1 flex flex-col justify-end">
-              <div className="flex flex-col text-center">
-                <div className="h-[96px] bg-status-success rounded-t-lg flex items-center justify-center text-white font-bold text-sm">48%</div>
-                <div className="h-[24px] bg-secondary flex items-center justify-center text-white font-bold text-sm">12%</div>
-                <div className="h-[80px] bg-status-error flex items-center justify-center text-white font-bold text-sm">40%</div>
+              <div className="flex justify-center gap-4 mt-8 text-xs text-on-surface-variant">
+                <div className="flex items-center gap-1"><span className="w-3 h-3 bg-on-surface-variant/40 rounded-full"></span> Original</div>
+                <div className="flex items-center gap-1"><span className="w-3 h-3 bg-primary rounded-full"></span> IA</div>
               </div>
-              <span className="text-center text-sm font-bold mt-4">IA</span>
-            </div>
-          </div>
-          <div className="flex justify-center gap-4 mt-8 text-xs text-on-surface-variant">
-            <div className="flex items-center gap-1"><span className="w-3 h-3 bg-status-success rounded-full"></span> Promotores</div>
-            <div className="flex items-center gap-1"><span className="w-3 h-3 bg-secondary rounded-full"></span> Neutros</div>
-            <div className="flex items-center gap-1"><span className="w-3 h-3 bg-status-error rounded-full"></span> Detratores</div>
-          </div>
+            </>
+          ) : (
+            <>
+              <div className="flex h-[200px] gap-8 mt-8">
+                <div className="flex-1 flex flex-col justify-end">
+                  <div className="flex flex-col text-center">
+                    <div className="h-[120px] bg-status-success/60 rounded-t-lg flex items-center justify-center text-white font-bold text-sm">60%</div>
+                    <div className="h-[30px] bg-secondary/60 flex items-center justify-center text-white font-bold text-sm">15%</div>
+                    <div className="h-[50px] bg-status-error/60 flex items-center justify-center text-white font-bold text-sm">25%</div>
+                  </div>
+                  <span className="text-center text-sm font-bold mt-4">Original</span>
+                </div>
+                <div className="flex-1 flex flex-col justify-end">
+                  <div className="flex flex-col text-center">
+                    <div className="h-[96px] bg-status-success rounded-t-lg flex items-center justify-center text-white font-bold text-sm">48%</div>
+                    <div className="h-[24px] bg-secondary flex items-center justify-center text-white font-bold text-sm">12%</div>
+                    <div className="h-[80px] bg-status-error flex items-center justify-center text-white font-bold text-sm">40%</div>
+                  </div>
+                  <span className="text-center text-sm font-bold mt-4">IA</span>
+                </div>
+              </div>
+              <div className="flex justify-center gap-4 mt-8 text-xs text-on-surface-variant">
+                <div className="flex items-center gap-1"><span className="w-3 h-3 bg-status-success rounded-full"></span> Promotores</div>
+                <div className="flex items-center gap-1"><span className="w-3 h-3 bg-secondary rounded-full"></span> Neutros</div>
+                <div className="flex items-center gap-1"><span className="w-3 h-3 bg-status-error rounded-full"></span> Detratores</div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

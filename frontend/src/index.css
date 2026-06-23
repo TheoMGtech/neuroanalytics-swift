@@ -36,3 +36,25 @@
     display: none; /* Chrome, Safari and Opera */
   }
 }
+
+@media print {
+  body {
+    background: white !important;
+  }
+
+  aside,
+  header,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  main,
+  .ml-\[260px\] {
+    margin-left: 0 !important;
+  }
+
+  #executive-report-print {
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+}

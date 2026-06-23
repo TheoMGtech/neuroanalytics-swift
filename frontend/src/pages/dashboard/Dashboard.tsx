@@ -3,6 +3,7 @@ import { useFilters } from '../../context/FilterContext';
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { buildFilterParams } from '../../utils/filterParams';
+import { testFeaturesEnabled } from '../../config/features';
 
 const Dashboard = () => {
   const { filters, toggleDrawer, activeFilterCount } = useFilters();
@@ -29,7 +30,7 @@ const Dashboard = () => {
   const metrics = {
     totalReviews: data?.totalReviews || 0,
     reclassifiedReviews: data?.reclassifiedCount || 0,
-    confidenceAvg: 92.4, // Média geral
+    confidenceAvg: testFeaturesEnabled ? Math.round((data?.confidenceAvg || 0) * 1000) / 10 : 92.4,
     oldNps: Math.round(data?.originalNps || 0),
     aiNps: Math.round(data?.generalNps || 0),
   };
@@ -37,13 +38,16 @@ const Dashboard = () => {
   const diffNps = metrics.aiNps - metrics.oldNps;
   
   // Use real stores and originalNps
-  const topStores = (data?.storeData || [])
+  const topStoresSource = testFeaturesEnabled
+    ? [...(data?.storeData || [])].sort((a: any, b: any) => Math.abs(b.diffNps || 0) - Math.abs(a.diffNps || 0))
+    : (data?.storeData || []);
+  const topStores = topStoresSource
     .slice(0, 5)
     .map((s: any) => ({
       name: s.name,
       new: Math.round(s.nps),
       old: Math.round(s.originalNps || s.nps),
-      diff: Math.round(s.nps) - Math.round(s.originalNps || s.nps)
+      diff: Math.round(s.diffNps ?? (s.nps - (s.originalNps || s.nps)))
     }));
 
   return (
@@ -121,7 +125,7 @@ const Dashboard = () => {
                 <span className="font-display-lg text-display-lg font-bold text-status-error">{diffNps}</span>
               </div>
               <div className="mt-2 text-status-error font-body-sm text-sm">
-                Pontos de NPS perdidos
+                {testFeaturesEnabled ? (diffNps < 0 ? 'Pontos de NPS perdidos' : 'Pontos de NPS adicionados') : 'Pontos de NPS perdidos'}
               </div>
             </div>
 
@@ -149,7 +153,7 @@ const Dashboard = () => {
                 <span className="font-display-lg text-display-lg font-bold text-on-surface">{metrics.reclassifiedReviews.toLocaleString()}</span>
               </div>
               <div className="mt-2 text-on-surface-variant font-body-sm text-sm">
-                {metrics.totalReviews > 0 ? ((metrics.reclassifiedReviews / metrics.totalReviews) * 100).toFixed(1) : 0}% da base
+                {metrics.totalReviews > 0 ? ((metrics.reclassifiedReviews / metrics.totalReviews) * 100).toFixed(1) : 0}% da base{testFeaturesEnabled ? ` · Conf. ${metrics.confidenceAvg.toFixed(1)}%` : ''}
               </div>
             </div>
 
@@ -226,7 +230,6 @@ const Dashboard = () => {
                       <span className="font-bold text-status-error">{store.diff} pts</span>
                     </div>
                     <div className="relative h-4 bg-surface-container rounded-full overflow-hidden flex">
-                      {/* Fake stacked bar for old vs new */}
                       <div className="absolute top-0 bottom-0 left-0 bg-primary/30" style={{ width: `${store.old}%` }}></div>
                       <div className="absolute top-0 bottom-0 left-0 bg-primary" style={{ width: `${store.new}%` }}></div>
                     </div>

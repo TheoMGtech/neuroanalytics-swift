@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { useFilters } from '../../context/FilterContext';
 import api from '../../services/api';
 import { buildFilterParams } from '../../utils/filterParams';
+import { testFeaturesEnabled } from '../../config/features';
 
 const Explicabilidade = () => {
   const { filters, toggleDrawer, activeFilterCount } = useFilters();
   const [examples, setExamples] = useState<any[]>([]);
-  const [metrics, setMetrics] = useState({ reclassifiedCount: 0 });
+  const [metrics, setMetrics] = useState({ reclassifiedCount: 0, confidenceAvg: 0 });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -14,7 +15,10 @@ const Explicabilidade = () => {
         const metricsRes = await api.get('/dashboard/metrics', {
           params: buildFilterParams(filters)
         });
-        setMetrics({ reclassifiedCount: metricsRes.data.reclassifiedCount || 0 });
+        setMetrics({
+          reclassifiedCount: metricsRes.data.reclassifiedCount || 0,
+          confidenceAvg: metricsRes.data.confidenceAvg || 0
+        });
 
         const commentsRes = await api.get('/dashboard/comments', {
           params: { ...buildFilterParams(filters), page: 1, limit: 100 }
@@ -45,7 +49,7 @@ const Explicabilidade = () => {
     {
       title: "Reclassificação de Promotores",
       condition: "Nota 9 ou 10, mas Sentimento Negativo",
-      action: "Alterado para Detrator ou Neutro",
+      action: "Alterado para Neutro",
       example: "Nota: 9 | Texto: 'A carne estava estragada e o gerente não quis trocar.'",
       confidence: "Alta"
     },
@@ -59,7 +63,7 @@ const Explicabilidade = () => {
     {
       title: "Reclassificação de Detratores (Viés Positivo)",
       condition: "Nota 0 a 6, mas Sentimento Positivo",
-      action: "Alterado para Promotor ou Neutro",
+      action: "Alterado para Neutro",
       example: "Nota: 5 | Texto: 'Tudo perfeito, adoro comprar aqui!'",
       confidence: "Média"
     }
@@ -95,7 +99,7 @@ const Explicabilidade = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="bg-surface rounded-xl border border-border-subtle shadow-sm p-5 flex flex-col items-center justify-center text-center">
           <span className="material-symbols-outlined text-4xl text-status-success mb-2">verified</span>
-          <span className="font-display-md font-bold text-on-surface">92.4%</span>
+          <span className="font-display-md font-bold text-on-surface">{testFeaturesEnabled ? (metrics.confidenceAvg * 100).toFixed(1) : '92.4'}%</span>
           <span className="text-sm text-on-surface-variant">Confiança Média da IA</span>
         </div>
         <div className="bg-surface rounded-xl border border-border-subtle shadow-sm p-5 flex flex-col items-center justify-center text-center">

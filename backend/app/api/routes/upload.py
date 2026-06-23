@@ -2,9 +2,10 @@ import io
 from typing import Optional
 
 import pandas as pd
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 
 from app.api.deps import get_current_user_email
+from app.core.config import settings
 from app.db.database import db
 from app.ml.inference import (
     get_category_predictions,
@@ -26,7 +27,8 @@ router = APIRouter()
 @router.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
-    save_analysis: Optional[bool] = Form(False),
+    save_analysis: Optional[bool] = Form(None),
+    save_analysis_query: Optional[bool] = Query(None, alias="save_analysis"),
     email: str = Depends(get_current_user_email),
 ):
     user = await db.user.find_unique(where={"email": email})
@@ -83,8 +85,11 @@ async def upload_file(
     categories = get_category_predictions(model_texts)
 
     df["sentiment"] = [s["sentiment"] for s in sentiments]
+    df["sentiment_confidence"] = [float(s.get("confidence", 0)) for s in sentiments]
     df["category"] = [c["category"] for c in categories]
-    df["confidence"] = [c["confidence"] for c in categories]
+    df["category_confidence"] = [float(c.get("confidence", 0)) for c in categories]
+    df["confidence"] = df[["sentiment_confidence", "category_confidence"]].min(axis=1)
+    df["low_confidence"] = df["confidence"] < settings.LOW_CONFIDENCE_THRESHOLD
 
     nps_data = calculate_nps_with_ai(df)
     if not nps_data:
@@ -95,8 +100,10 @@ async def upload_file(
     management_summary = nps_data["management_summary"]
     avg_confidence = float(df["confidence"].mean()) if not df.empty else 0.0
 
+    should_save = save_analysis if save_analysis is not None else bool(save_analysis_query)
+
     analysis_id = None
-    if save_analysis:
+    if should_save:
         analysis = await db.analysis.create(
             data={
                 "fileName": filename,

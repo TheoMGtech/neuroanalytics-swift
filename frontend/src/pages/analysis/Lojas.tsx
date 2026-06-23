@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useFilters } from '../../context/FilterContext';
 import api from '../../services/api';
 import { buildFilterParams } from '../../utils/filterParams';
+import { testFeaturesEnabled } from '../../config/features';
 
 const Lojas = () => {
   const { toggleDrawer, activeFilterCount, filters } = useFilters();
@@ -28,7 +29,11 @@ const Lojas = () => {
               diff: aiNps - oldNps,
               promotores: s.promoters || 0,
               neutros: s.neutral || 0,
-              detratores: s.detractors || 0
+              detratores: s.detractors || 0,
+              sentimentAverage: Number(s.sentimentAverage || 0),
+              topProblems: s.topProblems || [],
+              topPraises: s.topPraises || [],
+              alert: Boolean(s.alert)
             };
           });
           setData(mapped.sort((a: any, b: any) => a.diff - b.diff));
@@ -86,6 +91,14 @@ const Lojas = () => {
                   <th className="px-6 py-4 text-center">Promotores</th>
                   <th className="px-6 py-4 text-center">Neutros</th>
                   <th className="px-6 py-4 text-center">Detratores</th>
+                  {testFeaturesEnabled && (
+                    <>
+                      <th className="px-6 py-4 text-center">Sentimento</th>
+                      <th className="px-6 py-4">Top 3 Problemas</th>
+                      <th className="px-6 py-4">Top 3 Elogios</th>
+                      <th className="px-6 py-4 text-center">Alerta</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle">
@@ -107,6 +120,36 @@ const Lojas = () => {
                     <td className="px-6 py-4 text-center text-status-success">{store.promotores}</td>
                     <td className="px-6 py-4 text-center text-secondary">{store.neutros}</td>
                     <td className="px-6 py-4 text-center text-status-error">{store.detratores}</td>
+                    {testFeaturesEnabled && (
+                      <>
+                        <td className="px-6 py-4 text-center font-bold">{store.sentimentAverage.toFixed(2)}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {store.topProblems.length ? store.topProblems.map((item: any) => (
+                              <span key={item.name} className="px-2 py-1 rounded bg-status-error/10 text-status-error text-xs font-bold">
+                                {item.name} ({item.count})
+                              </span>
+                            )) : <span className="text-on-surface-variant text-xs">Sem volume negativo</span>}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {store.topPraises.length ? store.topPraises.map((item: any) => (
+                              <span key={item.name} className="px-2 py-1 rounded bg-status-success/10 text-status-success text-xs font-bold">
+                                {item.name} ({item.count})
+                              </span>
+                            )) : <span className="text-on-surface-variant text-xs">Sem volume positivo</span>}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {store.alert ? (
+                            <span className="material-symbols-outlined text-status-error">warning</span>
+                          ) : (
+                            <span className="material-symbols-outlined text-status-success">check_circle</span>
+                          )}
+                        </td>
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>

@@ -2,6 +2,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { CheckCircle, AlertTriangle } from 'lucide-react';
+import api from '../../services/api';
+import { testFeaturesEnabled } from '../../config/features';
 
 const Preview = () => {
   const navigate = useNavigate();
@@ -13,10 +15,26 @@ const Preview = () => {
     return null;
   }
   
-  const { summary, store_results, comments_sample } = result;
+  const { summary, store_results, comments_sample, analysis_id } = result;
   
   // Calculate outliers from store_results
   const outliersCount = store_results?.filter((s: any) => s.is_outlier).length || 0;
+
+  const handleDownloadCsv = async () => {
+    if (!analysis_id) return;
+    const response = await api.get('/dashboard/comments-export', {
+      params: { analysis_id },
+      responseType: 'blob'
+    });
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `base-inferencia-teste-${analysis_id}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -54,8 +72,14 @@ const Preview = () => {
         </Card>
         <Card>
           <p className="text-sm text-gray-400">Base gerada</p>
-          <p className="text-sm font-medium mt-1 truncate">analise_swift_maio2026.csv</p>
-          <a href="#" className="text-xs text-[#E30613] hover:underline mt-2 inline-block">Baixar CSV enriquecido</a>
+          <p className="text-sm font-medium mt-1 truncate">
+            {testFeaturesEnabled && analysis_id ? `analise_${analysis_id}_enriquecida.csv` : 'base_com_predicoes.csv'}
+          </p>
+          {testFeaturesEnabled && analysis_id && (
+            <button onClick={handleDownloadCsv} className="text-xs text-[#E30613] hover:underline mt-2 inline-block">
+              Baixar CSV enriquecido
+            </button>
+          )}
         </Card>
       </div>
 
@@ -68,7 +92,13 @@ const Preview = () => {
                 <th className="px-6 py-3">Loja</th>
                 <th className="px-6 py-3">Comentário</th>
                 <th className="px-6 py-3 text-center">Nota NPS</th>
-                <th className="px-6 py-3 rounded-tr-lg">Sentimento</th>
+                <th className={`px-6 py-3 ${testFeaturesEnabled ? '' : 'rounded-tr-lg'}`}>Sentimento</th>
+                {testFeaturesEnabled && (
+                  <>
+                    <th className="px-6 py-3">Categoria</th>
+                    <th className="px-6 py-3 rounded-tr-lg">Confiança</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -86,6 +116,15 @@ const Preview = () => {
                       {row.sentiment || 'Neutro'}
                     </Badge>
                   </td>
+                  {testFeaturesEnabled && (
+                    <>
+                      <td className="px-6 py-4 text-gray-300">{row.category || '-'}</td>
+                      <td className="px-6 py-4 text-gray-300">
+                        {row.confidence !== undefined ? `${(row.confidence * 100).toFixed(1)}%` : '-'}
+                        {row.low_confidence ? ' · baixa' : ''}
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>

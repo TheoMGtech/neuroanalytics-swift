@@ -2,6 +2,9 @@ FROM node:22-alpine as builder
 
 WORKDIR /app
 
+ARG VITE_ENABLE_TEST_FEATURES=false
+ENV VITE_ENABLE_TEST_FEATURES=$VITE_ENABLE_TEST_FEATURES
+
 COPY package*.json ./
 
 RUN rm -f package-lock.json && npm install --legacy-peer-deps

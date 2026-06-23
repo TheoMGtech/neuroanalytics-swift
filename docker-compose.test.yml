@@ -20,13 +20,18 @@ services:
     ports:
       - "8001:8000"
     environment:
+      - ENVIRONMENT=test
+      - ENABLE_TEST_FEATURES=true
       - DATABASE_URL=postgresql://neuro:neuro@database_test:5432/neuroanalytics_test
       - DIRECT_URL=postgresql://neuro:neuro@database_test:5432/neuroanalytics_test
       - SECRET_KEY=super-secret-key-neuroanalytics-swift-2026
+      - LOW_CONFIDENCE_THRESHOLD=0.70
+      - DATA_DIR=/workspace_data
     depends_on:
       - database_test
     volumes:
       - ./backend:/app
+      - ./data:/workspace_data:ro
 
   frontend_test:
     image: node:22-alpine
@@ -37,6 +42,7 @@ services:
       - "3001:3000"
     environment:
       - VITE_API_URL=http://localhost:8001
+      - VITE_ENABLE_TEST_FEATURES=true
     command: sh -c "npm install --legacy-peer-deps && npm run dev"
     depends_on:
       - backend_test

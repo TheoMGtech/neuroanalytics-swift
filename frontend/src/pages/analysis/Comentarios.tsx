@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useFilters } from '../../context/FilterContext';
 import api from '../../services/api';
 import { buildFilterParams } from '../../utils/filterParams';
+import { testFeaturesEnabled } from '../../config/features';
 
 const Comentarios = () => {
   const { toggleDrawer, activeFilterCount, filters } = useFilters();
@@ -130,6 +131,13 @@ const Comentarios = () => {
                   <th className="px-4 py-3 text-center">Classe por Nota</th>
                   <th className="px-4 py-3 text-center">Classe Original</th>
                   <th className="px-4 py-3 text-center">Classe IA</th>
+                  {testFeaturesEnabled && (
+                    <>
+                      <th className="px-4 py-3 text-center">Sentimento</th>
+                      <th className="px-4 py-3 text-center">Categoria</th>
+                      <th className="px-4 py-3 text-center">Confiança</th>
+                    </>
+                  )}
                   <th className="px-4 py-3 min-w-[300px]">Comentário</th>
                   <th className="px-4 py-3 text-center">Status</th>
                 </tr>
@@ -159,6 +167,19 @@ const Comentarios = () => {
                           {classLabel(aiClassification)}
                         </span>
                       </td>
+                      {testFeaturesEnabled && (
+                        <>
+                          <td className="px-4 py-4 text-center font-bold">{item.sentiment || '-'}</td>
+                          <td className="px-4 py-4 text-center">{item.category || '-'}</td>
+                          <td className="px-4 py-4 text-center">
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${
+                              item.lowConfidence ? 'bg-status-error/10 text-status-error' : 'bg-status-success/10 text-status-success'
+                            }`}>
+                              {item.confidence !== undefined ? `${(item.confidence * 100).toFixed(1)}%` : '-'}
+                            </span>
+                          </td>
+                        </>
+                      )}
                       <td className="px-4 py-4 italic text-on-surface-variant">"{comment}"</td>
                       <td className="px-4 py-4 text-center whitespace-nowrap">
                         <span className={`px-2 py-1 rounded border text-[10px] font-bold uppercase ${
@@ -172,7 +193,7 @@ const Comentarios = () => {
                 })}
                 {data.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-on-surface-variant">
+                    <td colSpan={testFeaturesEnabled ? 10 : 7} className="px-4 py-8 text-center text-on-surface-variant">
                       Nenhum comentário encontrado com os filtros atuais.
                     </td>
                   </tr>

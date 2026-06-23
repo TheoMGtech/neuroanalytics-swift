@@ -16,11 +16,13 @@ import Grupos from './pages/analysis/Grupos';
 import Lojas from './pages/analysis/Lojas';
 import Explicabilidade from './pages/analysis/Explicabilidade';
 import Comentarios from './pages/analysis/Comentarios';
+import RelatorioExecutivo from './pages/analysis/RelatorioExecutivo';
 
 import HistoryList from './pages/history/HistoryList';
 import HistoryDetail from './pages/history/HistoryDetail';
 import Settings from './pages/settings/Settings';
 import InvalidBase from './pages/error/InvalidBase';
+import { testFeaturesEnabled } from './config/features';
 
 function App() {
   return (
@@ -47,6 +49,10 @@ function App() {
         <Route path="lojas" element={<Lojas />} />
         <Route path="explicabilidade" element={<Explicabilidade />} />
         <Route path="comentarios" element={<Comentarios />} />
+        <Route
+          path="relatorio"
+          element={testFeaturesEnabled ? <RelatorioExecutivo /> : <Navigate to="/app/dashboard" replace />}
+        />
         
         {/* History */}
         <Route path="history" element={<HistoryList />} />

@@ -65,3 +65,7 @@ docker-compose down
 
 ---
 *Para dúvidas mais profundas e regras de código, consulte a estrutura interna em `/frontend`, `/backend` e o arquivo de `CONTRIBUTING.md`.*
+
+## Ambiente de apresentação
+
+Para alternar entre o ambiente estável e o ambiente de teste com relatório executivo, consulte `docs/presentation-test-env.md`.

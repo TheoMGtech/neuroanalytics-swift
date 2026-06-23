@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { testFeaturesEnabled } from '../../config/features';
 
 const Sidebar = () => {
   const location = useLocation();
@@ -13,6 +14,9 @@ const Sidebar = () => {
     { name: 'Visão por Lojas', icon: 'storefront', path: '/app/lojas' },
     { name: 'Explicabilidade IA', icon: 'memory', path: '/app/explicabilidade' },
     { name: 'Comentários', icon: 'forum', path: '/app/comentarios' },
+    ...(testFeaturesEnabled
+      ? [{ name: 'Relatório Executivo', icon: 'summarize', path: '/app/relatorio' }]
+      : []),
     { name: 'Histórico', icon: 'history', path: '/app/history' },
   ];
 

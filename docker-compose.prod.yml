@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     environment:
       - ENVIRONMENT=production
+      - ENABLE_TEST_FEATURES=false
     ports:
       - "8000:8000"
 
@@ -12,5 +13,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_ENABLE_TEST_FEATURES=false
     ports:
       - "3000:3000"

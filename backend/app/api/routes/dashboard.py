@@ -1,12 +1,33 @@
+import csv
+import io
 from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 
 from app.api.deps import get_current_user_email
+from app.core.config import settings
 from app.db.database import db
+from app.ml.evaluation import safe_model_diagnostics
 
 router = APIRouter()
+
+
+def _ensure_test_features():
+    if settings.ENVIRONMENT != "test" and not settings.ENABLE_TEST_FEATURES:
+        raise HTTPException(status_code=404, detail="Recurso disponivel apenas no ambiente de teste")
+
+
+def _top_items(counts: dict[str, int], limit: int = 3):
+    return [
+        {"name": name, "count": int(count)}
+        for name, count in sorted(counts.items(), key=lambda item: item[1], reverse=True)[:limit]
+    ]
+
+
+def _percent(count: int, total: int) -> float:
+    return round((count / total) * 100, 4) if total else 0.0
 
 
 CLASS_MAP = {
@@ -143,6 +164,9 @@ def _empty_metrics():
         "reclassifiedCount": 0,
         "generalNps": 0,
         "originalNps": 0,
+        "confidenceAvg": 0,
+        "distributionComparison": [],
+        "executiveSummary": {},
     }
 
 
@@ -239,6 +263,39 @@ async def get_dashboard_metrics(
         management[mgmt_flag]["ai"][ai_cls] = management[mgmt_flag]["ai"].get(ai_cls, 0) + count
         management[mgmt_flag]["orig"][original_cls] = management[mgmt_flag]["orig"].get(original_cls, 0) + count
 
+    store_category_rows = await _group(["storeName", "category", "sentiment"], where_comments)
+    by_store_topics: dict[str, dict] = {}
+    by_management_topics: dict[str, dict] = {}
+    sentiment_score = {"Positivo": 1, "Neutro": 0, "Negativo": -1}
+    for row in store_category_rows:
+        store_name = _row_value(row, "storeName")
+        category_name = _row_value(row, "category") or "Outros"
+        sentiment_name = _row_value(row, "sentiment") or "Neutro"
+        count = _row_count(row)
+        if store_name not in by_store_topics:
+            by_store_topics[store_name] = {
+                "problems": {},
+                "praises": {},
+                "sentimentScore": 0,
+                "sentimentCount": 0,
+            }
+        store_topics = by_store_topics[store_name]
+        store_topics["sentimentScore"] += sentiment_score.get(sentiment_name, 0) * count
+        store_topics["sentimentCount"] += count
+        if sentiment_name == "Negativo":
+            store_topics["problems"][category_name] = store_topics["problems"].get(category_name, 0) + count
+        if sentiment_name == "Positivo":
+            store_topics["praises"][category_name] = store_topics["praises"].get(category_name, 0) + count
+
+        mgmt_flag = store_flags.get(store_name, "NAO_IDENTIFICADO")
+        if mgmt_flag not in by_management_topics:
+            by_management_topics[mgmt_flag] = {"problems": {}, "praises": {}}
+        mgmt_topics = by_management_topics[mgmt_flag]
+        if sentiment_name == "Negativo":
+            mgmt_topics["problems"][category_name] = mgmt_topics["problems"].get(category_name, 0) + count
+        if sentiment_name == "Positivo":
+            mgmt_topics["praises"][category_name] = mgmt_topics["praises"].get(category_name, 0) + count
+
     def get_color(nps):
         if nps >= 75:
             return "#346E4A"
@@ -251,12 +308,27 @@ async def get_dashboard_metrics(
         ai_counts = counts["ai"]
         orig_counts = counts["orig"]
         ai_nps = _nps_from_counts(ai_counts)
+        original_nps = _nps_from_counts(orig_counts)
+        topics = by_store_topics.get(
+            store_name,
+            {"problems": {}, "praises": {}, "sentimentScore": 0, "sentimentCount": 0},
+        )
+        sentiment_average = (
+            topics["sentimentScore"] / topics["sentimentCount"]
+            if topics["sentimentCount"]
+            else 0
+        )
         store_data.append(
             {
                 "name": store_name,
                 "flag": store_flags.get(store_name, "NAO_IDENTIFICADO"),
                 "nps": ai_nps,
-                "originalNps": _nps_from_counts(orig_counts),
+                "originalNps": original_nps,
+                "diffNps": ai_nps - original_nps,
+                "alert": abs(ai_nps - original_nps) >= 10,
+                "sentimentAverage": sentiment_average,
+                "topProblems": _top_items(topics["problems"]),
+                "topPraises": _top_items(topics["praises"]),
                 "color": get_color(ai_nps),
                 "promoters": ai_counts.get("promoter", 0),
                 "neutral": ai_counts.get("neutral", 0),
@@ -305,6 +377,7 @@ async def get_dashboard_metrics(
     for mgmt_flag, counts in management.items():
         ai_counts = counts["ai"]
         orig_counts = counts["orig"]
+        mgmt_topics = by_management_topics.get(mgmt_flag, {"problems": {}, "praises": {}})
         management_data.append(
             {
                 "flag": mgmt_flag,
@@ -317,6 +390,8 @@ async def get_dashboard_metrics(
                 "originalPromoters": orig_counts.get("promoter", 0),
                 "originalNeutral": orig_counts.get("neutral", 0),
                 "originalDetractors": orig_counts.get("detractor", 0),
+                "topProblems": _top_items(mgmt_topics["problems"], 5),
+                "topPraises": _top_items(mgmt_topics["praises"], 5),
             }
         )
     management_data.sort(key=lambda x: x["flag"])
@@ -345,10 +420,64 @@ async def get_dashboard_metrics(
         elif cls == "detractor":
             cat_data[cat]["detractors"] += _row_count(row)
 
+    category_data = list(cat_data.values())
     total_reviews = sum(general_ai.values())
     general_nps = _nps_from_counts(general_ai)
     original_nps = _nps_from_counts(general_original)
     reclassified_count = sum(item["count"] for item in reclassification_reasons)
+    distribution_comparison = [
+        {
+            "label": "Promotores",
+            "original": general_original.get("promoter", 0),
+            "ai": general_ai.get("promoter", 0),
+            "originalPercent": _percent(general_original.get("promoter", 0), total_reviews),
+            "aiPercent": _percent(general_ai.get("promoter", 0), total_reviews),
+        },
+        {
+            "label": "Neutros",
+            "original": general_original.get("neutral", 0),
+            "ai": general_ai.get("neutral", 0),
+            "originalPercent": _percent(general_original.get("neutral", 0), total_reviews),
+            "aiPercent": _percent(general_ai.get("neutral", 0), total_reviews),
+        },
+        {
+            "label": "Detratores",
+            "original": general_original.get("detractor", 0),
+            "ai": general_ai.get("detractor", 0),
+            "originalPercent": _percent(general_original.get("detractor", 0), total_reviews),
+            "aiPercent": _percent(general_ai.get("detractor", 0), total_reviews),
+        },
+    ]
+    top_strengths = sorted(
+        (
+            {"name": row["category"], "count": row["promoters"]}
+            for row in category_data
+            if row.get("promoters", 0) > 0
+        ),
+        key=lambda item: item["count"],
+        reverse=True,
+    )[:3]
+    top_attention = sorted(
+        (
+            {"name": row["category"], "count": row["detractors"]}
+            for row in category_data
+            if row.get("detractors", 0) > 0
+        ),
+        key=lambda item: item["count"],
+        reverse=True,
+    )[:3]
+    alert_stores = [store for store in store_data if store["alert"]]
+    executive_summary = {
+        "sentiment": sentiment_data,
+        "topStrengths": top_strengths,
+        "topAttention": top_attention,
+        "alertStores": len(alert_stores),
+        "largestNpsDiffStores": sorted(
+            store_data,
+            key=lambda store: abs(store["diffNps"]),
+            reverse=True,
+        )[:5],
+    }
 
     insights = [
         {
@@ -373,13 +502,16 @@ async def get_dashboard_metrics(
         "storeData": store_data,
         "sentimentData": sentiment_data,
         "managementData": management_data,
-        "categoryData": list(cat_data.values()),
+        "categoryData": category_data,
         "insights": insights,
         "reclassificationReasons": reclassification_reasons,
         "totalReviews": total_reviews,
         "reclassifiedCount": reclassified_count,
         "generalNps": general_nps,
         "originalNps": original_nps,
+        "confidenceAvg": latest_analysis.confidenceAvg,
+        "distributionComparison": distribution_comparison,
+        "executiveSummary": executive_summary,
     }
 
 
@@ -492,6 +624,7 @@ async def get_comments_paginated(
                 "sentiment": c.sentiment,
                 "category": c.category,
                 "confidence": c.confidence,
+                "lowConfidence": c.confidence < settings.LOW_CONFIDENCE_THRESHOLD,
                 "originalClassification": c.originalClassification,
                 "original_classification": c.originalClassification,
                 "aiClassification": c.aiClassification,
@@ -508,3 +641,170 @@ async def get_comments_paginated(
             "limit": limit,
         },
     }
+
+
+@router.get("/model-diagnostics")
+async def get_model_diagnostics(email: str = Depends(get_current_user_email)):
+    _ensure_test_features()
+    await _get_user(email)
+    return safe_model_diagnostics()
+
+
+@router.get("/executive-report")
+async def get_executive_report(
+    analysis_id: Optional[int] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    store: Optional[str] = Query(None),
+    flag: Optional[str] = Query(None),
+    respondent_type: Optional[str] = Query(None),
+    sentiment: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    ai_status: Optional[str] = Query(None),
+    email: str = Depends(get_current_user_email),
+):
+    _ensure_test_features()
+    user = await _get_user(email)
+    latest_analysis = await _get_analysis(user.id, analysis_id)
+    if not latest_analysis:
+        return {
+            "generatedAt": datetime.utcnow().isoformat(),
+            "metrics": _empty_metrics(),
+            "modelDiagnostics": safe_model_diagnostics(),
+            "representativeComments": [],
+        }
+
+    metrics = await get_dashboard_metrics(
+        analysis_id=analysis_id,
+        start_date=start_date,
+        end_date=end_date,
+        store=store,
+        flag=flag,
+        respondent_type=respondent_type,
+        sentiment=sentiment,
+        category=category,
+        ai_status=ai_status,
+        email=email,
+    )
+    where_comments = await _comment_where(
+        latest_analysis.id,
+        store=store,
+        flag=flag,
+        respondent_type=respondent_type,
+        sentiment=sentiment,
+        category=category,
+        ai_status=ai_status,
+    )
+    comments = await db.commentresult.find_many(where=where_comments, take=300)
+
+    representative = []
+    for comment in comments:
+        if len(representative) >= 12:
+            break
+        if comment.reclassificationRule or comment.sentiment == "Negativo":
+            representative.append(
+                {
+                    "storeName": comment.storeName,
+                    "text": comment.commentText,
+                    "sentiment": comment.sentiment,
+                    "category": comment.category,
+                    "confidence": comment.confidence,
+                    "lowConfidence": comment.confidence < settings.LOW_CONFIDENCE_THRESHOLD,
+                    "originalClassification": comment.originalClassification,
+                    "aiClassification": comment.aiClassification,
+                    "reclassificationRule": comment.reclassificationRule,
+                }
+            )
+
+    return {
+        "generatedAt": datetime.utcnow().isoformat(),
+        "analysis": {
+            "id": latest_analysis.id,
+            "fileName": latest_analysis.fileName,
+            "createdAt": latest_analysis.createdAt.isoformat(),
+        },
+        "metrics": metrics,
+        "modelDiagnostics": safe_model_diagnostics(),
+        "representativeComments": representative,
+        "narrative": {
+            "headline": "Relatorio executivo consolidado do sentimento dos clientes Swift",
+            "methodNote": (
+                "O NPS IA reclassifica avaliacoes quando o texto do cliente diverge "
+                "da nota original. O relatorio exibe tambem confianca e alertas para "
+                "casos de menor seguranca."
+            ),
+            "riskNote": (
+                "Os diagnosticos de teste usam a taxonomia manual como validacao "
+                "independente; resultados devem ser revisados antes de decisao operacional critica."
+            ),
+        },
+    }
+
+
+@router.get("/comments-export")
+async def export_comments_csv(
+    analysis_id: Optional[int] = Query(None),
+    store: Optional[str] = Query(None),
+    flag: Optional[str] = Query(None),
+    respondent_type: Optional[str] = Query(None),
+    sentiment: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    ai_status: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    email: str = Depends(get_current_user_email),
+):
+    _ensure_test_features()
+    user = await _get_user(email)
+    latest_analysis = await _get_analysis(user.id, analysis_id)
+    if not latest_analysis:
+        raise HTTPException(status_code=404, detail="Analise nao encontrada")
+
+    where_comments = await _comment_where(
+        latest_analysis.id,
+        store=store,
+        flag=flag,
+        respondent_type=respondent_type,
+        sentiment=sentiment,
+        category=category,
+        ai_status=ai_status,
+        search=search,
+    )
+    comments = await db.commentresult.find_many(where=where_comments)
+
+    output = io.StringIO()
+    output.write("\ufeff")
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "loja",
+            "comentario",
+            "sentimento_pred",
+            "categoria_pred",
+            "confianca",
+            "baixa_confianca",
+            "classificacao_original",
+            "classificacao_ajustada",
+            "regra_reclassificacao",
+        ]
+    )
+    for comment in comments:
+        writer.writerow(
+            [
+                comment.storeName,
+                comment.commentText,
+                comment.sentiment,
+                comment.category,
+                round(float(comment.confidence), 4),
+                comment.confidence < settings.LOW_CONFIDENCE_THRESHOLD,
+                comment.originalClassification,
+                comment.aiClassification,
+                comment.reclassificationRule or "",
+            ]
+        )
+
+    filename = f"base_inferencia_teste_{latest_analysis.id}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

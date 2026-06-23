@@ -3,6 +3,7 @@ import { useFilters } from '../../context/FilterContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import api from '../../services/api';
 import { buildFilterParams } from '../../utils/filterParams';
+import { testFeaturesEnabled } from '../../config/features';
 
 const Grupos = () => {
   const { toggleDrawer, activeFilterCount, filters } = useFilters();
@@ -45,6 +46,9 @@ const Grupos = () => {
 
   const totalPromoters = categories.reduce((acc: number, c: any) => acc + c.promoters, 0);
   const totalDetractors = categories.reduce((acc: number, c: any) => acc + c.detractors, 0);
+  const highlightThemes = [...temasPromotores, ...temasDetratores]
+    .sort((a: any, b: any) => b.freq - a.freq)
+    .slice(0, 10);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12">
@@ -128,23 +132,40 @@ const Grupos = () => {
           </div>
 
           <div className="bg-surface rounded-xl border border-border-subtle shadow-sm p-6 mt-6">
-            <h3 className="font-headline-md font-bold text-on-surface mb-6">Palavras-chave em destaque</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 bg-status-success/10 text-status-success rounded-full text-sm font-medium border border-status-success/20">carne macia</span>
-                <span className="px-3 py-1 bg-status-success/10 text-status-success rounded-full text-sm font-medium border border-status-success/20">atendente simpático</span>
-                <span className="px-3 py-1 bg-status-success/10 text-status-success rounded-full text-sm font-medium border border-status-success/20">loja limpa</span>
-                <span className="px-3 py-1 bg-status-success/10 text-status-success rounded-full text-sm font-medium border border-status-success/20">fresquinho</span>
-                <span className="px-3 py-1 bg-status-success/10 text-status-success rounded-full text-sm font-medium border border-status-success/20">rápido</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 bg-status-error/10 text-status-error rounded-full text-sm font-medium border border-status-error/20">demora na fila</span>
-                <span className="px-3 py-1 bg-status-error/10 text-status-error rounded-full text-sm font-medium border border-status-error/20">muito caro</span>
-                <span className="px-3 py-1 bg-status-error/10 text-status-error rounded-full text-sm font-medium border border-status-error/20">faltou picanha</span>
-                <span className="px-3 py-1 bg-status-error/10 text-status-error rounded-full text-sm font-medium border border-status-error/20">caixa lento</span>
-                <span className="px-3 py-1 bg-status-error/10 text-status-error rounded-full text-sm font-medium border border-status-error/20">atendente grosso</span>
-              </div>
-            </div>
+            {testFeaturesEnabled ? (
+              <>
+                <h3 className="font-headline-md font-bold text-on-surface mb-6">Temas em destaque no recorte atual</h3>
+                <div className="flex flex-wrap gap-2">
+                  {highlightThemes.length ? highlightThemes.map((theme: any) => (
+                    <span key={`${theme.tema}-${theme.freq}`} className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium border border-primary/20">
+                      {theme.tema} · {theme.freq.toLocaleString()}
+                    </span>
+                  )) : (
+                    <span className="text-sm text-on-surface-variant">Sem temas disponíveis para os filtros atuais.</span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="font-headline-md font-bold text-on-surface mb-6">Palavras-chave em destaque</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-3 py-1 bg-status-success/10 text-status-success rounded-full text-sm font-medium border border-status-success/20">carne macia</span>
+                    <span className="px-3 py-1 bg-status-success/10 text-status-success rounded-full text-sm font-medium border border-status-success/20">atendente simpático</span>
+                    <span className="px-3 py-1 bg-status-success/10 text-status-success rounded-full text-sm font-medium border border-status-success/20">loja limpa</span>
+                    <span className="px-3 py-1 bg-status-success/10 text-status-success rounded-full text-sm font-medium border border-status-success/20">fresquinho</span>
+                    <span className="px-3 py-1 bg-status-success/10 text-status-success rounded-full text-sm font-medium border border-status-success/20">rápido</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-3 py-1 bg-status-error/10 text-status-error rounded-full text-sm font-medium border border-status-error/20">demora na fila</span>
+                    <span className="px-3 py-1 bg-status-error/10 text-status-error rounded-full text-sm font-medium border border-status-error/20">muito caro</span>
+                    <span className="px-3 py-1 bg-status-error/10 text-status-error rounded-full text-sm font-medium border border-status-error/20">faltou picanha</span>
+                    <span className="px-3 py-1 bg-status-error/10 text-status-error rounded-full text-sm font-medium border border-status-error/20">caixa lento</span>
+                    <span className="px-3 py-1 bg-status-error/10 text-status-error rounded-full text-sm font-medium border border-status-error/20">atendente grosso</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </>
       )}
